@@ -69,13 +69,15 @@ function smartCase(s) {
    Vamos usar esse cabeçalho como "divisória" entre os pedidos.
    ------------------------------------------------------------ */
 
-// Dois formatos de cabeçalho: iPhone (com colchetes) e Android (com hífen).
-// Cada regex captura: (1) a data, (2) a hora, (3) quem enviou.
+// Três formatos de cabeçalho (cada celular/versão do WhatsApp escreve de um jeito).
+// "d" e "t" dizem em qual grupo da regex estão a DATA e a HORA (o 3º grupo é quem enviou).
 var HEADERS = [
-  // [18/10, 12:27] Fulano:
-  { src: '^\\[(\\d{1,2}\\/\\d{1,2})(?:\\/\\d{2,4})?,?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\]\\s*([^:\\n]{1,80}?):[ \\t]?', fl: 'gm' },
-  // 18/10/2026 12:27 - Fulano:
-  { src: '^(\\d{1,2}\\/\\d{1,2})\\/\\d{2,4},?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\s+-\\s+([^:\\n]{1,80}?):[ \\t]?', fl: 'gm' }
+  // [18/10, 12:27] Fulano:        (data antes da hora)
+  { src: '^\\[(\\d{1,2}\\/\\d{1,2})(?:\\/\\d{2,4})?,?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\]\\s*([^:\\n]{1,80}?):[ \\t]?', fl: 'gm', d: 1, t: 2 },
+  // [20:51, 24/10/2026] Fulano:   (hora antes da data)
+  { src: '^\\[(\\d{1,2}:\\d{2})(?::\\d{2})?,?\\s+(\\d{1,2}\\/\\d{1,2})(?:\\/\\d{2,4})?\\]\\s*([^:\\n]{1,80}?):[ \\t]?', fl: 'gm', d: 2, t: 1 },
+  // 18/10/2026 12:27 - Fulano:    (Android)
+  { src: '^(\\d{1,2}\\/\\d{1,2})\\/\\d{2,4},?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\s+-\\s+([^:\\n]{1,80}?):[ \\t]?', fl: 'gm', d: 1, t: 2 }
 ];
 
 // Recebe o texto inteiro e devolve uma lista: [{date, time, body}, ...]
@@ -90,7 +92,7 @@ function splitMessages(text) {
     var hits = [], m;
     // re.exec vai achando um cabeçalho por vez; guardamos onde cada um começa e termina.
     while ((m = re.exec(text))) {
-      hits.push({ idx: m.index, end: m.index + m[0].length, date: m[1], time: m[2] });
+      hits.push({ idx: m.index, end: m.index + m[0].length, date: m[HEADERS[k].d], time: m[HEADERS[k].t] });
     }
     if (hits.length) {
       var out = [];
@@ -139,7 +141,7 @@ var TYPE_ONLY = /^(r|rua|av|avenida|al|alameda|tv|travessa|beco|estrada|rodovia|
 var NUM_PREFIX = '(?:n[º°o]?\\.?|n[uú]mero|num\\.?)';
 
 // Complementos que aparecem logo depois do número: "apt 802", "bloco B", "casa", "fundos"...
-var COMP_RE = /^(?:ap(?:to|artamento|t)?\.?\s*\d+[a-z]?|bloco\s*\w+|casa\s*\d*|fundos|loja\s*\w*|sala\s*\w*|\d+\s*[ºo°]?\s*andar)(?=$|[\s,.\-])/i;
+var COMP_RE = /^(?:ap(?:to|artamento|tm|t)?\.?\s*\d+[a-z]?|bloco\s*\w+|casa\s*\d*|fundos|loja\s*\w*|sala\s*\w*|\d+\s*[ºo°]?\s*andar)(?=$|[\s,.\-])/i;
 
 // Texto que COMEÇA como nome de rua (usado para perceber que é referência, não bairro).
 var STREET_START = /^(r|rua|av|avenida|al|alameda|tv|travessa|beco|estrada|rodovia)\b\.?/i;
@@ -296,7 +298,8 @@ function parseAddress(lines) {
   var res = (segs.length >= 2 && /\d/.test(segs[0])) ? parseSegmented(segs) : parseInformal(s);
   res.extras = res.extras.concat(lines.slice(1));  // linhas extras = referência
   var addr = res.number ? res.street + ', ' + res.number : res.street;
-  return { addr: addr, bairro: res.bairro ? smartCase(res.bairro) : '', extras: res.extras };
+  // Bairro é nome próprio: sempre com a primeira letra de cada palavra maiúscula ("santo Antônio" -> "Santo Antônio").
+  return { addr: addr, bairro: res.bairro ? titleCase(res.bairro) : '', extras: res.extras };
 }
 
 
@@ -331,9 +334,16 @@ function parsePay(lines) {
   var tm = N.match(/TROCO\s*(?:PARA|PRA|P\/|P\b)?\s*(?:R\$\s*)?(\d+(?:[.,]\d+)?)/);
   var trocoPara = tm ? parseAmount(tm[1]) : null;
 
-  var kind;
+  var kind, via = '';
+  var viaPix = /\bPIX\b/.test(N);
+  var outraForma = /\bCARTAO\b|CREDITO|DEBITO|DINHEIRO|ESPECIE/.test(N);
   if (hasPago && !hasReceber) {
     kind = 'pago';
+    if (viaPix) via = 'Pix';
+  } else if (viaPix && !hasReceber && amount === null && !outraForma) {
+    // Só "Pix" (sem valor e sem "receber"): o cliente já pagou por Pix.
+    kind = 'pago';
+    via = 'Pix';
   } else {
     // Descobre a forma de pagamento.
     var forma = null;
@@ -345,7 +355,7 @@ function parsePay(lines) {
     else if (!lines.length) kind = 'none';          // nenhuma linha de pagamento
     else kind = 'unknown';                          // tem algo, mas falta forma ou valor -> a tela pede confirmação
   }
-  return { kind: kind, amount: amount, trocoPara: kind === 'dinheiro' ? trocoPara : null };
+  return { kind: kind, amount: amount, trocoPara: kind === 'dinheiro' ? trocoPara : null, via: via };
 }
 
 
@@ -366,6 +376,7 @@ function fmtRefri(line) {
   if (m) { qty = parseInt(m[1], 10); t = m[2]; }
 
   t = t.replace(/\s+/g, ' ').trim().toLowerCase().split(' ').map(function (w) {
+    if (w === 'com' || w === 'sem' || w === 'de' || w === 'da' || w === 'do') return w;                // "Água com Gás"
     if (/^\d+([.,]\d+)?l$/.test(w)) return w.toUpperCase();                                          // 2l -> 2L
     if (/^\d+([.,]\d+)?ml$/.test(w) || w === 'mini' || w === 'lata' || w === 'ml') return w;         // fica minúsculo
     return w.charAt(0).toUpperCase() + w.slice(1);                                                    // Coca, Zero...
@@ -377,27 +388,64 @@ function fmtRefri(line) {
 
 /* ------------------------------------------------------------
    ETAPA 5 — MONTAR UM PEDIDO
-   Cada pedido (depois de tirar o cabeçalho) tem blocos separados por
-   linha em branco:
+   Cada serviço manda o pedido numa ordem diferente:
 
-        [endereço]       <- bloco 1
-        [nome]           <- bloco 2
-        [itens]          <- bloco 3 (opcional)
-        [pagamento]      <- bloco 4
-        [observações]    <- o que não encaixar em nada acima
+     Paradise Food:  endereço, nome, itens, pagamento
+     Dona Mesa:      nome, endereço, bebida, pagamento
+
+   Por isso o parser NÃO depende da posição. Ele olha o CONTEÚDO
+   de cada linha e decide o que ela é:
+
+     começa com "Rua", "Av", "Beco"...   -> endereço
+     tem "PAGO", "R$", "Pix"...          -> pagamento
+     tem "Coca", "Guaraná", "Água"...    -> refri
+     nome curto, sem número              -> nome do cliente
+     qualquer outra coisa                -> observação
+
+   Nada some em silêncio: o que não se encaixa em nada vira observação,
+   e você vê (e pode apagar) no card.
    ------------------------------------------------------------ */
 
-// Linha que fala de pagamento? (usada pra separar pagamento do resto)
-var PAY_LINE = /\bPAGO\b|R\$|\bRECEBER\b|\bTROCO\b|\bCARTAO\b|\bDINHEIRO\b|\bPIX\b/;
+// Linha que COMEÇA como endereço: rua, avenida, beco, "BR-356"...
+// (testada sem acento, por isso "praça" aparece como "praca")
+var STREET_LINE = /^(r|rua|av|avenida|al|alameda|tv|travessa|beco|estrada|rodovia|rod|praca|pca|largo|vila)\b\.?|^br[\s-]*\d/i;
+
+// Linha que fala de pagamento (testada sem acento e em MAIÚSCULAS).
+var PAY_LINE = /\bPAGO\b|R\$|\bRECEBER\b|\bCOBRAR\b|\bTROCO\b|\bCARTAO\b|\bCREDITO\b|\bDEBITO\b|\bDINHEIRO\b|\bESPECIE\b|\bPIX\b|\bPAGAMENTO\b/;
+
+// Tira "Para entregar na ...", "Endereço: ...", "Entrega: ..." do começo da linha.
+// "Para entregar na Rua Rita 10" -> "Rua Rita 10"
+function stripAddrPrefix(l) {
+  return l.replace(/^(?:para\s+)?entregar\s+(?:n[ao]s?|em|à|a)\s+/i, '')
+          .replace(/^(?:endere[cç]o|entrega)\s*:\s*/i, '');
+}
+
+function isPay(t) { return PAY_LINE.test(noAccent(t).toUpperCase()); }
+
+// Linha de comida/quantidade: começa com número ("300G CHURRASCO") ou fala de marmitex.
+function isFoodLine(t) { return /^\d/.test(t) || /MARMIT/.test(noAccent(t).toUpperCase()); }
+
+// Linha de bebida: tem uma palavra da lista do refri e é curta (ou começa com número).
+// Linhas longas ("atrás da caixa d'água grande...") não contam, pois são referência de endereço.
+function isDrinkLine(t) {
+  if (!REFRI_RE.test(noAccent(t).toUpperCase())) return false;
+  return /^\d/.test(t) || t.trim().split(/\s+/).length <= 5;
+}
+
+// Parece um nome de pessoa? Curto (até 4 palavras), sem número e sem vírgula.
+function isNameLike(t) {
+  if (/\d/.test(t) || /[,;:]/.test(t)) return false;
+  return t.trim().split(/\s+/).length <= 4;
+}
 
 // Recebe o texto de UMA mensagem e devolve o pedido (ou null se não der pra entender).
 function parseBody(body) {
-  // Limpa cada linha: tira links (o Spoke recebe o endereço em texto), espaços repetidos e pontas.
+  // 1) Limpa cada linha: tira links (o Spoke recebe o endereço em texto) e espaços repetidos.
   var lines = body.split('\n').map(function (l) {
     return l.replace(/https?:\/\/\S+/gi, '').replace(/\s+/g, ' ').trim();
   });
 
-  // Agrupa as linhas em blocos, usando as linhas em branco como divisória.
+  // 2) Agrupa em blocos (linhas em branco separam). Guardamos de qual bloco cada linha veio.
   var sections = [], cur = [];
   lines.forEach(function (l) {
     if (l) cur.push(l);
@@ -405,49 +453,68 @@ function parseBody(body) {
   });
   if (cur.length) sections.push(cur);
   if (!sections.length) return null;
+  var multi = sections.length >= 2;
 
-  var addrLines, nameLine, rest = [], warn = '';
-  if (sections.length >= 2) {
-    addrLines = sections[0];                 // bloco 1 = endereço
-    nameLine = sections[1][0];               // 1ª linha do bloco 2 = nome
-    rest = sections[1].slice(1);             // sobras do bloco 2
-    sections.slice(2).forEach(function (s) { rest = rest.concat(s); }); // blocos 3, 4...
-  } else {
-    // Mensagem sem linhas em branco: chuta que a 1ª linha é o endereço e a 2ª é o nome.
-    var s0 = sections[0];
-    if (s0.length < 2) return null;
-    addrLines = [s0[0]];
-    nameLine = s0[1];
-    rest = s0.slice(2);
-    warn = 'Sem linhas em branco na mensagem: confira o nome.';
-  }
-
-  // Se o "nome" na verdade é uma linha de pagamento (ex.: "PAGO"), o nome está faltando.
-  if (PAY_LINE.test(noAccent(nameLine).toUpperCase())) {
-    rest.unshift(nameLine);
-    nameLine = '';
-    warn = 'Nome não encontrado.';
-  }
-
-  // Classifica cada linha restante: pagamento, item, ou observação.
-  var payLines = [], itemLines = [], obs = [];
-  rest.forEach(function (l) {
-    var N = noAccent(l).toUpperCase();
-    if (PAY_LINE.test(N)) payLines.push(l);                              // "PAGO", "R$..."
-    else if (/^\d/.test(l) || /MARMIT/.test(N)) itemLines.push(l);       // começa com número ("1 COCA", "200G ...")
-    else obs.push(l);                                                    // qualquer outra coisa = observação
+  var items = [];   // todas as linhas, na ordem: { t: texto, b: nº do bloco, li: posição no bloco, used: já usada? }
+  sections.forEach(function (sec, b) {
+    sec.forEach(function (t, li) { items.push({ t: t, b: b, li: li, used: false }); });
   });
+  if (items.length < 2) return null;   // uma linha só ("oi") não é pedido
 
-  // Procura refri nas linhas de itens (só nelas, para não confundir com "caixa d'água" do endereço).
-  var refri = [];
-  itemLines.forEach(function (l) {
+  // 3) ACHAR O ENDEREÇO.
+  var addrIdx = -1, k;
+  //    3a) a primeira linha que começa como endereço (ou tem "Para entregar na...")
+  for (k = 0; k < items.length && addrIdx < 0; k++) {
+    var raw = items[k].t;
+    if (isPay(raw)) continue;
+    var st = stripAddrPrefix(raw);
+    if (st !== raw || STREET_LINE.test(noAccent(st))) { addrIdx = k; items[k].t = st; }
+  }
+  //    3b) sem "Rua" no começo (ex.: "Pronto socorro, Hospital X"): a primeira linha que NÃO parece
+  //        nome, pagamento, bebida ou comida
+  for (k = 0; k < items.length && addrIdx < 0; k++) {
+    var t = items[k].t;
+    if (isPay(t) || isDrinkLine(t) || isFoodLine(t) || isNameLike(t)) continue;
+    addrIdx = k;
+  }
+  //    3c) ainda nada: como no Paradise, a 1ª linha da mensagem (só se houver blocos separados)
+  if (addrIdx < 0 && multi) {
+    var f = items[0].t;
+    if (!isPay(f) && !isDrinkLine(f) && !isFoodLine(f)) addrIdx = 0;
+  }
+
+  // 4) As linhas logo abaixo do endereço, no MESMO bloco, são referência
+  //    ("atrás da caixa d'água"). Só vale quando o endereço abre o bloco.
+  var addrLines = [];
+  if (addrIdx >= 0) {
+    addrLines.push(items[addrIdx].t);
+    items[addrIdx].used = true;
+    if (multi && items[addrIdx].li === 0) {
+      items.forEach(function (it) {
+        if (it.b === items[addrIdx].b && it.li > 0 && !isPay(it.t)) { addrLines.push(it.t); it.used = true; }
+      });
+    }
+  }
+
+  // 5) CLASSIFICAR O RESTO, linha por linha, na ordem em que aparecem.
+  var nameLine = '', payLines = [], refri = [], obs = [];
+  items.forEach(function (it) {
+    if (it.used) return;
+    var t = it.t;
+    var comida = isFoodLine(t);
     // O que está entre parênteses vira observação: "100G SALPICÃO (ESCREVER BR)".
-    var clean = l.replace(/\(([^)]*)\)/g, function (m, g) { if (g.trim()) obs.push(g.trim()); return ' '; })
-      .replace(/\s+/g, ' ').trim();
-    if (REFRI_RE.test(noAccent(clean).toUpperCase())) refri.push(fmtRefri(clean));
+    var clean = comida
+      ? t.replace(/\(([^)]*)\)/g, function (m, g) { if (g.trim()) obs.push(g.trim()); return ' '; }).replace(/\s+/g, ' ').trim()
+      : t;
+
+    if (isPay(t)) payLines.push(t);                                  // "PAGO", "R$48 RECEBER...", "Pix"
+    else if (isDrinkLine(clean)) refri.push(fmtRefri(clean));        // "1 COCA ZERO MINI", "Água com gás"
+    else if (comida) { /* comida: não aparece no card */ }
+    else if (!nameLine && isNameLike(t)) nameLine = t;               // o 1º texto curto vira o nome
+    else obs.push(t);                                                // o resto é observação
   });
 
-  var a = parseAddress(addrLines);
+  var a = addrLines.length ? parseAddress(addrLines) : { addr: '', bairro: '', extras: [] };
   return {
     name: nameLine ? smartCase(nameLine) : '',
     bairro: a.bairro,
@@ -456,7 +523,7 @@ function parseBody(body) {
     pay: parsePay(payLines),
     refri: refri,
     obs: obs.concat(a.extras),            // observações da mensagem primeiro, depois as do endereço
-    warn: warn
+    warn: nameLine ? '' : 'Nome não encontrado.'
   };
 }
 

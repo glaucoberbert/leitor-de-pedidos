@@ -110,7 +110,7 @@ teste('sem refri e "caixa d\'água" no endereço não conta como água', () => {
 /* ---------- Observações ---------- */
 teste('observação solta e observação entre parênteses', () => {
   const o = um('[24/10, 11:00] X: Rua A, 1\n\nMARTA\n\n100G SALPICÃO (ESCREVER BR)\n\nPAGO\n\nMANDAR TALHER');
-  assert.deepStrictEqual(o.obs, ['MANDAR TALHER', 'ESCREVER BR']);
+  assert.deepStrictEqual(o.obs, ['ESCREVER BR', 'MANDAR TALHER']);
 });
 
 /* ---------- Várias mensagens de uma vez ---------- */
@@ -126,4 +126,67 @@ teste('separa vários pedidos pelo cabeçalho do WhatsApp', () => {
 teste('formato Android (data com ano e hífen)', () => {
   const r = parseOrders('24/10/2026 11:00 - X: Rua A, 1\n\nANA\n\nPAGO');
   assert.strictEqual(r.orders.length, 1);
+});
+
+/* ---------- Dona Mesa: ordem diferente (nome, endereço, bebida, pagamento) ---------- */
+teste('cabeçalho com hora antes da data: [20:51, 24/10/2026]', () => {
+  const r = parseOrders('[20:51, 24/10/2026] Dona Mesa: Talisma\n\nRua A 10\n\nPix\n[20:59, 24/10/2026] Dona Mesa: Joel\n\nRua B 20\n\nPix');
+  assert.strictEqual(r.orders.length, 2);
+  assert.strictEqual(r.orders[0].date, '24/10');   // data e hora não se misturam
+  assert.strictEqual(r.orders[0].time, '20:51');
+});
+
+teste('nome primeiro, depois endereço (ordem da Dona Mesa)', () => {
+  const o = um('[20:51, 24/10/2026] Dona Mesa: Talisma\n\nRua Pereira Galvão 732\n\nÁgua com gás\nPix');
+  assert.strictEqual(o.name, 'Talisma');
+  assert.strictEqual(o.addr, 'Rua Pereira Galvão, 732');
+  assert.deepStrictEqual(o.refri, ['Água com Gás']);
+});
+
+teste('"Para entregar na ..." e bairro depois do número', () => {
+  const o = um('[20:59, 24/10/2026] Dona Mesa: Joelaine\n\nPara entregar na Rua Rita Siqueira Serrano nº 10, São Cristóvão, \n\nCoca comum\n\npix');
+  assert.strictEqual(o.addr, 'Rua Rita Siqueira Serrano, 10');
+  assert.strictEqual(o.bairro, 'São Cristóvão');
+});
+
+teste('"aptm 201" é complemento e "bairro santo Antônio" vira bairro', () => {
+  const o = um('[21:39, 24/10/2026] Dona Mesa: Igor\n\nRua santo Antônio 874 aptm 201 bairro santo Antônio\n\nCoca zero\n\nForma de pagamento pix');
+  assert.strictEqual(o.addr, 'Rua santo Antônio, 874');
+  assert.strictEqual(o.bairro, 'Santo Antônio');
+  assert.deepStrictEqual(o.obs, ['aptm 201']);
+});
+
+teste('só "Pix" (sem valor) = já pago por Pix', () => {
+  const p = um('[20:51, 24/10/2026] X: Talisma\n\nRua A 10\n\nPix').pay;
+  assert.strictEqual(p.kind, 'pago');
+  assert.strictEqual(p.via, 'Pix');
+});
+
+teste('"R$30 receber pix" continua sendo para receber', () => {
+  const p = um('[20:51, 24/10/2026] X: Talisma\n\nRua A 10\n\nR$30 receber pix').pay;
+  assert.strictEqual(p.kind, 'pix');
+  assert.strictEqual(p.amount, 30);
+});
+
+teste('mesma mensagem em ordens diferentes dá o mesmo resultado', () => {
+  const paradise = um('[24/10, 11:00] X: Rua A, 10\n\nANA\n\n1 COCA LATA\n\nPAGO');
+  const dona     = um('[24/10, 11:00] X: ANA\n\nRua A, 10\n\n1 COCA LATA\n\nPAGO');
+  assert.strictEqual(paradise.name, dona.name);
+  assert.strictEqual(paradise.addr, dona.addr);
+  assert.deepStrictEqual(paradise.refri, dona.refri);
+  assert.strictEqual(paradise.pay.kind, dona.pay.kind);
+});
+
+teste('mensagem sem linhas em branco (tudo junto)', () => {
+  const o = um('[24/10, 11:00] X: Carla\nRua das Flores 10 Centro\n1 Suco laranja\nPAGO');
+  assert.strictEqual(o.name, 'Carla');
+  assert.strictEqual(o.addr, 'Rua das Flores, 10');
+  assert.strictEqual(o.bairro, 'Centro');
+  assert.deepStrictEqual(o.refri, ['Suco Laranja']);
+});
+
+teste('sem nome na mensagem: avisa em vez de inventar', () => {
+  const o = um('[24/10, 11:00] X: Rua A, 10\n\nPAGO');
+  assert.strictEqual(o.name, '');
+  assert.ok(o.warn);
 });
