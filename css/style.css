@@ -44,7 +44,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #0e1712; --surface: #171e24; --surface-2: #1f2a32; --ink: #e9eff3; --ink-2: #9aa9b5; --line: #2d3a45;
+    --bg: #0e1317; --surface: #171e24; --surface-2: #1f2a32; --ink: #e9eff3; --ink-2: #9aa9b5; --line: #2d3a45;
     --accent: #55c1de; --accent-ink: #07202a; --ok: #6fd391; --ok-bg: #17331f; --warn: #ffbf5e; --warn-bg: #3a2a0c;
   }
 }
@@ -60,7 +60,11 @@ body {
   background: var(--bg);
   color: var(--ink);
   font: 400 16px/1.4 var(--f-body);
-  padding: 20px 16px 48px;
+  /* Cima 20px, lados no mínimo 16px (e maiores se o celular tiver "notch"), baixo 48px. */
+  padding-top: 20px;
+  padding-bottom: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
 /* .wrap = a coluna central. Limita a largura e empilha as seções com espaço entre elas. */
@@ -256,6 +260,64 @@ textarea#src {
 
 .empty { padding: 28px 16px; text-align: center; color: var(--ink-2); border: 1px dashed var(--line); border-radius: 10px; }
 .foot { color: var(--ink-2); font-size: 14px; }
+
+/* ------------------------------------------------------------
+   6. ENTREGAS DO DIA, SERVIÇOS E RELATÓRIO
+   ------------------------------------------------------------ */
+
+/* .stack = uma pilha de seções com espaço entre elas */
+.stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* Mensagem de status (salvo, erro). */
+.status { margin: 0; padding: 10px 12px; border-radius: 6px; font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+.status.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.status.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+
+.hint { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+/* Campo curto (valores em reais) */
+.in.sm { max-width: 160px; font-variant-numeric: tabular-nums; }
+
+/* Escolha do serviço: botões lado a lado; o escolhido fica na cor de destaque. */
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg .b2[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg .plus { background: transparent; border-style: dashed; color: var(--accent); }
+#novo .in { flex: 1 1 160px; }
+
+/* Barra das entregas do dia */
+.turno-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.turno-box.open { border-color: var(--accent); }
+.turno-t { font: 700 28px/1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.turno-nums { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.turno-nums > div { padding: 10px 8px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.turno-nums > div + div { border-left: 1px solid var(--line); }
+.turno-nums b { font: 700 28px/1 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Rotas já terminadas */
+.rotas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rotas li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.rotas li:last-child { border-bottom: 0; }
+.rl { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rl .n { font-weight: 600; }
+
+/* Card entregue: borda verde e um pouco mais apagado */
+.card.done { border-color: var(--ok); }
+.card.done .body { opacity: .78; }
+.ent { min-height: 40px; }
+
+/* Relatório */
+h2 { margin: 0; }
+.rel-s { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.rel-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rel-h b { font: 700 24px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.rel-h span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rel-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rel-l li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rel-l .n { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.rel-l .in.sm { width: 110px; flex: none; }
+.rel-g { display: flex; flex-direction: column; gap: 6px; }
+.rel-g b { font: 700 40px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+#saldo { font-weight: 600; }
 
 /* [hidden] precisa ganhar de qualquer display definido acima. */
 [hidden] { display: none !important; }

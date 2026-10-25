@@ -2,24 +2,18 @@
 <!--
   index.html  —  O "esqueleto" da página
   ------------------------------------------------------------
-  HTML só descreve O QUE existe na tela (título, caixa de texto,
-  botões). A aparência está em css/style.css e o comportamento
-  (o que acontece ao clicar) está em js/app.js.
+  HTML só descreve O QUE existe na tela. A aparência está em
+  css/style.css e o comportamento em js/app.js.
 
-  Os cards dos pedidos NÃO estão aqui: o app.js cria eles
-  dentro de <section id="list">.
+  Várias partes aqui ficam vazias de propósito (turno, serviços, resumo,
+  cards, relatório): o app.js preenche essas partes conforme os dados.
 -->
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <!-- Faz a página se ajustar à largura do celular -->
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Leitor de Pedidos</title>
-
-  <!-- Fontes do Google (se ficar sem internet, o navegador usa as fontes de reserva do CSS) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-
-  <!-- Nosso CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -31,37 +25,70 @@
       <p class="lead">Cole as mensagens do WhatsApp. Cada pedido vira um card pronto pra colocar no Spoke.</p>
     </header>
 
-    <!-- Área onde você cola as mensagens -->
-    <section class="paste" aria-label="Mensagens">
-      <div class="paste-head">
-        <label class="lab" for="src">Mensagens coladas</label>
-        <span class="demo" id="demo">Exemplo com dados inventados</span>
-      </div>
-      <textarea id="src" spellcheck="false" placeholder="Cole aqui as mensagens do WhatsApp"></textarea>
+    <!-- Barra das entregas do dia: abrir, ver o andamento, fechar -->
+    <section class="turno" id="turno" aria-label="Entregas do dia"></section>
+
+    <!-- Mensagens curtas de status (salvo, erro...) -->
+    <p class="status" id="status" hidden></p>
+
+    <!-- TELA PRINCIPAL -->
+    <div class="stack" id="main">
+
+      <section class="paste" aria-label="Mensagens">
+        <div class="f">
+          <span class="lab">Serviço</span>
+          <div class="seg" id="servicos"></div>
+          <div class="row" id="novo" hidden>
+            <input class="in" id="novoNome" placeholder="Nome do serviço" autocomplete="off">
+            <button class="b1" id="novoOk" type="button">Salvar</button>
+          </div>
+          <!-- Apagar serviço: o app.js mostra o link e as duas perguntas aqui -->
+          <div class="notes" id="svcdel"></div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="valorPadrao">Valor por entrega (R$)</label>
+          <input class="in sm" id="valorPadrao" inputmode="decimal" autocomplete="off">
+          <span class="hint">Vale pra todos os cards. Em entrega mais longa, mude só no card dela.</span>
+        </div>
+
+        <div class="paste-head">
+          <label class="lab" for="src">Mensagens coladas</label>
+          <span class="demo" id="demo">Exemplo com dados inventados</span>
+        </div>
+        <textarea id="src" spellcheck="false" placeholder="Cole aqui as mensagens do WhatsApp"></textarea>
+        <div class="row">
+          <button class="b1" id="run" type="button">Ler pedidos</button>
+          <button class="b2" id="clear" type="button">Limpar</button>
+        </div>
+      </section>
+
+      <section class="sum" id="sum" aria-label="Resumo da rota"></section>
+
       <div class="row">
-        <button class="b1" id="run" type="button">Ler pedidos</button>
-        <button class="b2" id="clear" type="button">Limpar</button>
+        <button class="b2" id="copyall" type="button" style="flex:1 1 auto">Copiar lista toda</button>
+        <button class="b1" id="terminar" type="button">Terminar rota</button>
       </div>
-    </section>
+      <p class="hint" id="hintfim" hidden></p>
+      <div class="notes" id="fim"></div>
 
-    <!-- Números do topo (o app.js preenche) -->
-    <section class="sum" id="sum" aria-label="Resumo"></section>
-
-    <div class="row">
-      <button class="b2" id="copyall" type="button" style="flex:1 1 auto">Copiar lista toda</button>
+      <section class="list" id="list" aria-label="Pedidos"></section>
+      <p class="foot" id="foot" hidden></p>
     </div>
 
-    <!-- Aqui entram os cards (o app.js preenche) -->
-    <section class="list" id="list" aria-label="Pedidos"></section>
-    <p class="foot" id="foot" hidden></p>
+    <!-- TELA DO RELATÓRIO (aparece ao tocar em "Fechar entregas") -->
+    <section class="stack" id="rel" hidden></section>
 
   </main>
 
   <!--
-    A ORDEM IMPORTA: o parser.js vem primeiro porque o app.js usa a função
-    parseOrders(), que é criada dentro do parser.js.
+    A ORDEM IMPORTA:
+      parser.js  cria parseOrders()
+      storage.js cria "store" (onde os dados ficam guardados)
+      app.js     usa os dois acima
   -->
   <script src="js/parser.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
