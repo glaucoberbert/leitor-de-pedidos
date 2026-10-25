@@ -1,0 +1,8 @@
+# Mensagens reais de clientes NUNCA vão pro GitHub.
+# Guarde seus testes com dados reais nesta pasta:
+privado/
+
+# Arquivos que o sistema cria sozinho
+node_modules/
+.DS_Store
+Thumbs.db

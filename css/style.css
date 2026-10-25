@@ -1,0 +1,261 @@
+/* ============================================================
+   style.css  —  Aparência da página
+   ------------------------------------------------------------
+   Ideia do visual: uma coluna só (pensada pro celular) e cards
+   que lembram o canhoto de uma entrega, com uma linha pontilhada
+   separando o topo do resto. Cores com bom contraste pra ler na rua.
+
+   Organização do arquivo:
+     1. Cores e fontes (variáveis)
+     2. Base da página
+     3. Área de colar as mensagens
+     4. Resumo (números do topo)
+     5. Cards dos pedidos
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   1. CORES E FONTES
+   Variáveis CSS (começam com --) guardam valores que usamos várias
+   vezes. Para mudar uma cor do site inteiro, muda só aqui.
+   ------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  --bg: #e8edf0;          /* fundo da página */
+  --surface: #ffffff;     /* fundo dos cards */
+  --surface-2: #f1f4f6;   /* fundo dos campos de texto */
+  --ink: #12181d;         /* cor do texto */
+  --ink-2: #52606b;       /* texto secundário (mais apagado) */
+  --line: #cdd6dc;        /* linhas e bordas */
+  --accent: #0a6c8a;      /* cor de destaque (botões) */
+  --accent-ink: #ffffff;  /* texto em cima do destaque */
+  --ok: #17703a;          /* verde: tudo certo */
+  --ok-bg: #dcf2e4;
+  --warn: #8f4300;        /* laranja: conferir */
+  --warn-bg: #ffe9c2;
+
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;  /* nomes e números grandes */
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;    /* texto comum */
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;     /* etiquetas pequenas */
+}
+
+/* MODO ESCURO: se o celular estiver no modo escuro, trocamos só as cores. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1712; --surface: #171e24; --surface-2: #1f2a32; --ink: #e9eff3; --ink-2: #9aa9b5; --line: #2d3a45;
+    --accent: #55c1de; --accent-ink: #07202a; --ok: #6fd391; --ok-bg: #17331f; --warn: #ffbf5e; --warn-bg: #3a2a0c;
+  }
+}
+
+
+/* ------------------------------------------------------------
+   2. BASE DA PÁGINA
+   ------------------------------------------------------------ */
+* { box-sizing: border-box; }   /* a largura de um elemento já inclui borda e espaçamento interno */
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.4 var(--f-body);
+  padding: 20px 16px 48px;
+}
+
+/* .wrap = a coluna central. Limita a largura e empilha as seções com espaço entre elas. */
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Botões e campos herdam a fonte da página (por padrão o navegador usa outra). */
+button, input, textarea { font: inherit; color: inherit; }
+
+/* Contorno visível ao navegar pelo teclado. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+h1 {
+  margin: 0;
+  font: 700 32px/1 var(--f-display);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.lead { margin: 6px 0 0; color: var(--ink-2); font-size: 15px; }
+
+/* .lab = etiqueta pequena em maiúsculas ("ENDEREÇO", "PAGAMENTO"...) */
+.lab {
+  font: 500 11px/1 var(--f-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+
+/* ------------------------------------------------------------
+   3. ÁREA DE COLAR AS MENSAGENS
+   ------------------------------------------------------------ */
+.paste { display: flex; flex-direction: column; gap: 8px; }
+.paste-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+
+/* Selo "Exemplo com dados inventados" */
+.demo {
+  font: 500 11px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--warn-bg);
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+textarea#src {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  padding: 10px 12px;
+  font: 400 13px/1.45 var(--f-mono);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }   /* linha de botões; quebra se faltar espaço */
+
+/* Botões: .b1 = principal (colorido), .b2 = secundário (branco). min-height 44px = fácil de tocar. */
+.b1, .b2 {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+  cursor: pointer;
+}
+.b1 { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); flex: 1 1 auto; }
+.b2 { background: var(--surface); }
+.b2[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }  /* botão "ligado" */
+.b1:disabled, .b2:disabled { opacity: .5; cursor: default; }
+
+
+/* ------------------------------------------------------------
+   4. RESUMO (Pedidos / Conferir / Dinheiro / Cartão)
+   grid + auto-fit: as colunas se ajustam ao tamanho da tela.
+   ------------------------------------------------------------ */
+.sum {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.sum > div { padding: 12px 10px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sum > div + div { border-left: 1px solid var(--line); }
+.sum b { font: 700 28px/1 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sum .w b { color: var(--warn); }   /* "Conferir" fica laranja quando tem pendência */
+
+
+/* ------------------------------------------------------------
+   5. CARDS DOS PEDIDOS
+   ------------------------------------------------------------ */
+.list { display: flex; flex-direction: column; gap: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Topo do card: número, data/hora e etiqueta. A borda pontilhada é o "canhoto". */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 2px dashed var(--line);
+  font: 500 12px/1 var(--f-mono);
+  color: var(--ink-2);
+}
+.meta .idx { color: var(--ink); }
+
+/* Etiqueta "Conferir" (laranja) / "Pronto" (verde). margin-left:auto empurra pra direita. */
+.chip { margin-left: auto; padding: 5px 8px; border-radius: 4px; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+
+.body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+/* .f = um campo (etiqueta + conteúdo). */
+.f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.f-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+
+/* Botão pequeno "Copiar" */
+.cp {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Nome e bairro lado a lado (o nome ocupa um pouco mais). */
+.two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 8px; }
+.two > * { min-width: 0; }
+
+/* .in = campo de texto editável. font-size 16px evita o zoom automático do iPhone. */
+.in {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.in.nm { font: 600 24px/1.1 var(--f-display); }   /* o nome fica grande */
+.in.ad { font-weight: 500; }
+.in::placeholder { color: var(--ink-2); opacity: .8; }
+
+/* Refri: quando TEM refri, o campo fica colorido pra chamar atenção. */
+.in.refri.has { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.in.refri.has::placeholder { color: var(--accent-ink); }
+
+/* Pagamento */
+.pay { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.pay-main { font-size: 17px; }
+.pay-main strong { font: 700 28px/1 var(--f-display); margin-right: 4px; font-variant-numeric: tabular-nums; }
+.sub { color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tag.ok {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  font: 500 13px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Avisos (laranja = conferir, verde = aceito) */
+.notice { padding: 8px 10px; border-radius: 6px; font-size: 14px; width: 100%; }
+.notice.warn { background: var(--warn-bg); color: var(--warn); }
+.notice.ok { background: var(--ok-bg); color: var(--ok); }
+.notes { display: flex; flex-direction: column; gap: 8px; }
+.notes:empty { display: none; }   /* sem aviso = sem espaço */
+
+/* Botão com cara de link ("Mudar") */
+.link { background: none; border: 0; padding: 4px 0; color: var(--accent); font-size: 14px; text-decoration: underline; cursor: pointer; min-height: 32px; }
+
+.empty { padding: 28px 16px; text-align: center; color: var(--ink-2); border: 1px dashed var(--line); border-radius: 10px; }
+.foot { color: var(--ink-2); font-size: 14px; }
+
+/* [hidden] precisa ganhar de qualquer display definido acima. */
+[hidden] { display: none !important; }
