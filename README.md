@@ -16,6 +16,8 @@ Para cada pedido, mostra:
 
 Quando algo não fica claro (pagamento sem forma, endereço sem número), o card avisa e deixa você confirmar na hora.
 
+Se o pedido não veio no padrão (por exemplo, só um print do iFood), o botão **Inserir dados manualmente** abre uma telinha para preencher nome, bairro, endereço, pagamento, refri e observação. O pedido entra na lista como os outros.
+
 ### Vários serviços
 
 Cada serviço (restaurante, pastelaria...) tem seu valor por entrega. O valor vale para todos os cards da rota, e dá para mudar só o de uma entrega mais longa. Serviços podem ser criados e apagados (com duas confirmações).
