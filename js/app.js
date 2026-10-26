@@ -303,11 +303,13 @@
           '<div class="pay" id="pay-' + i + '">' + payHTML(o, i) + '</div></div>' +
 
         // Refri
-        '<div class="f"><span class="lab">Refri</span>' +
+        '<div class="f"><div class="f-head"><span class="lab">Refri</span>' +
+          '<button class="cp" type="button" id="refric-' + i + '" data-act="copy-refri"' + (o.refriText.trim() ? '' : ' hidden') + '>Copiar</button></div>' +
           '<input class="in refri' + (o.refriText ? ' has' : '') + '" data-f="refriText" aria-label="Refri" placeholder="sem refri" value="' + esc(o.refriText) + '" autocomplete="off"></div>' +
 
         // Observação
-        '<div class="f"><span class="lab">Observação</span>' +
+        '<div class="f"><div class="f-head"><span class="lab">Observação</span>' +
+          '<button class="cp" type="button" id="obsc-' + i + '" data-act="copy-obs"' + (o.obsText.trim() ? '' : ' hidden') + '>Copiar</button></div>' +
           '<input class="in" data-f="obsText" aria-label="Observação" placeholder="sem observação" value="' + esc(o.obsText) + '" autocomplete="off"></div>' +
 
         '<button class="link" type="button" data-act="remover">Remover este pedido</button>' +
@@ -834,6 +836,8 @@
     else if (act === 'copy-addr') copyText(o.addr, b, card.querySelector('[data-f="addr"]'));
     else if (act === 'semend') { o.semEnd = !o.semEnd; patchCard(i); queueSave(); }
     else if (act === 'feito') { o.feito = !o.feito; patchCard(i); queueSave(); }
+    else if (act === 'copy-refri') copyText(o.refriText.trim(), b, card.querySelector('[data-f="refriText"]'));
+    else if (act === 'copy-obs') copyText(o.obsText.trim(), b, card.querySelector('[data-f="obsText"]'));
     else if (act === 'copy-pay') copyText(payCopy(o), b, null);          // "R$48 - Dinheiro"
     else if (act === 'pay') {                                             // você escolheu a forma de pagamento
       var v = b.getAttribute('data-v');
@@ -852,7 +856,11 @@
     o[f] = t.value;
     if (f === 'name') { o.warn = ''; patchCard(i); }
     else if (f === 'addr') patchCard(i);
-    else if (f === 'refriText') t.classList.toggle('has', !!t.value.trim());
+    else if (f === 'refriText') {
+      t.classList.toggle('has', !!t.value.trim());                        // pinta o campo quando tem refri
+      var rb = $('refric-' + i); if (rb) rb.hidden = !t.value.trim();     // o botão Copiar só aparece se tem texto
+    }
+    else if (f === 'obsText') { var ob = $('obsc-' + i); if (ob) ob.hidden = !t.value.trim(); }
     else if (f === 'valorTxt') { o.valor = parseMoney(t.value); o.valorManual = true; }
     else if (f === 'payTxt') {                                            // valor a receber
       var n = parseMoney(t.value);
