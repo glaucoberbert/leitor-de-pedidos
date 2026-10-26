@@ -319,5 +319,13 @@ h2 { margin: 0; }
 .rel-g b { font: 700 40px/1 var(--f-display); font-variant-numeric: tabular-nums; }
 #saldo { font-weight: 600; }
 
+/* Pagamento editável: valor e troco lado a lado */
+.pay .seg { width: 100%; }
+.pay-in { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.pay-in > * { min-width: 0; }
+.pay-in .in.sm { max-width: none; }
+.payx { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.payx:empty { display: none; }
+
 /* [hidden] precisa ganhar de qualquer display definido acima. */
 [hidden] { display: none !important; }

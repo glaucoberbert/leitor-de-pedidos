@@ -1,0 +1,1888 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Leitor de Pedidos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ============================================================
+   style.css  —  Aparência da página
+   ------------------------------------------------------------
+   Ideia do visual: uma coluna só (pensada pro celular) e cards
+   que lembram o canhoto de uma entrega, com uma linha pontilhada
+   separando o topo do resto. Cores com bom contraste pra ler na rua.
+
+   Organização do arquivo:
+     1. Cores e fontes (variáveis)
+     2. Base da página
+     3. Área de colar as mensagens
+     4. Resumo (números do topo)
+     5. Cards dos pedidos
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   1. CORES E FONTES
+   Variáveis CSS (começam com --) guardam valores que usamos várias
+   vezes. Para mudar uma cor do site inteiro, muda só aqui.
+   ------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  --bg: #e8edf0;          /* fundo da página */
+  --surface: #ffffff;     /* fundo dos cards */
+  --surface-2: #f1f4f6;   /* fundo dos campos de texto */
+  --ink: #12181d;         /* cor do texto */
+  --ink-2: #52606b;       /* texto secundário (mais apagado) */
+  --line: #cdd6dc;        /* linhas e bordas */
+  --accent: #0a6c8a;      /* cor de destaque (botões) */
+  --accent-ink: #ffffff;  /* texto em cima do destaque */
+  --ok: #17703a;          /* verde: tudo certo */
+  --ok-bg: #dcf2e4;
+  --warn: #8f4300;        /* laranja: conferir */
+  --warn-bg: #ffe9c2;
+
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;  /* nomes e números grandes */
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;    /* texto comum */
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;     /* etiquetas pequenas */
+}
+
+/* MODO ESCURO: se o celular estiver no modo escuro, trocamos só as cores. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1317; --surface: #171e24; --surface-2: #1f2a32; --ink: #e9eff3; --ink-2: #9aa9b5; --line: #2d3a45;
+    --accent: #55c1de; --accent-ink: #07202a; --ok: #6fd391; --ok-bg: #17331f; --warn: #ffbf5e; --warn-bg: #3a2a0c;
+  }
+}
+
+
+/* ------------------------------------------------------------
+   2. BASE DA PÁGINA
+   ------------------------------------------------------------ */
+* { box-sizing: border-box; }   /* a largura de um elemento já inclui borda e espaçamento interno */
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.4 var(--f-body);
+  /* Cima 20px, lados no mínimo 16px (e maiores se o celular tiver "notch"), baixo 48px. */
+  padding-top: 20px;
+  padding-bottom: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* .wrap = a coluna central. Limita a largura e empilha as seções com espaço entre elas. */
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Botões e campos herdam a fonte da página (por padrão o navegador usa outra). */
+button, input, textarea { font: inherit; color: inherit; }
+
+/* Contorno visível ao navegar pelo teclado. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+h1 {
+  margin: 0;
+  font: 700 32px/1 var(--f-display);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.lead { margin: 6px 0 0; color: var(--ink-2); font-size: 15px; }
+
+/* .lab = etiqueta pequena em maiúsculas ("ENDEREÇO", "PAGAMENTO"...) */
+.lab {
+  font: 500 11px/1 var(--f-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+
+/* ------------------------------------------------------------
+   3. ÁREA DE COLAR AS MENSAGENS
+   ------------------------------------------------------------ */
+.paste { display: flex; flex-direction: column; gap: 8px; }
+.paste-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+
+/* Selo "Exemplo com dados inventados" */
+.demo {
+  font: 500 11px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--warn-bg);
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+textarea#src {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  padding: 10px 12px;
+  font: 400 13px/1.45 var(--f-mono);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }   /* linha de botões; quebra se faltar espaço */
+
+/* Botões: .b1 = principal (colorido), .b2 = secundário (branco). min-height 44px = fácil de tocar. */
+.b1, .b2 {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+  cursor: pointer;
+}
+.b1 { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); flex: 1 1 auto; }
+.b2 { background: var(--surface); }
+.b2[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }  /* botão "ligado" */
+.b1:disabled, .b2:disabled { opacity: .5; cursor: default; }
+
+
+/* ------------------------------------------------------------
+   4. RESUMO (Pedidos / Conferir / Dinheiro / Cartão)
+   grid + auto-fit: as colunas se ajustam ao tamanho da tela.
+   ------------------------------------------------------------ */
+.sum {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.sum > div { padding: 12px 10px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sum > div + div { border-left: 1px solid var(--line); }
+.sum b { font: 700 28px/1 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sum .w b { color: var(--warn); }   /* "Conferir" fica laranja quando tem pendência */
+
+
+/* ------------------------------------------------------------
+   5. CARDS DOS PEDIDOS
+   ------------------------------------------------------------ */
+.list { display: flex; flex-direction: column; gap: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Topo do card: número, data/hora e etiqueta. A borda pontilhada é o "canhoto". */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 2px dashed var(--line);
+  font: 500 12px/1 var(--f-mono);
+  color: var(--ink-2);
+}
+.meta .idx { color: var(--ink); }
+
+/* Etiqueta "Conferir" (laranja) / "Pronto" (verde). margin-left:auto empurra pra direita. */
+.chip { margin-left: auto; padding: 5px 8px; border-radius: 4px; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+
+.body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+/* .f = um campo (etiqueta + conteúdo). */
+.f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.f-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+
+/* Botão pequeno "Copiar" */
+.cp {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Nome e bairro lado a lado (o nome ocupa um pouco mais). */
+.two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 8px; }
+.two > * { min-width: 0; }
+
+/* .in = campo de texto editável. font-size 16px evita o zoom automático do iPhone. */
+.in {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.in.nm { font: 600 24px/1.1 var(--f-display); }   /* o nome fica grande */
+.in.ad { font-weight: 500; }
+.in::placeholder { color: var(--ink-2); opacity: .8; }
+
+/* Refri: quando TEM refri, o campo fica colorido pra chamar atenção. */
+.in.refri.has { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.in.refri.has::placeholder { color: var(--accent-ink); }
+
+/* Pagamento */
+.pay { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.pay-main { font-size: 17px; }
+.pay-main strong { font: 700 28px/1 var(--f-display); margin-right: 4px; font-variant-numeric: tabular-nums; }
+.sub { color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tag.ok {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  font: 500 13px/1 var(--f-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Avisos (laranja = conferir, verde = aceito) */
+.notice { padding: 8px 10px; border-radius: 6px; font-size: 14px; width: 100%; }
+.notice.warn { background: var(--warn-bg); color: var(--warn); }
+.notice.ok { background: var(--ok-bg); color: var(--ok); }
+.notes { display: flex; flex-direction: column; gap: 8px; }
+.notes:empty { display: none; }   /* sem aviso = sem espaço */
+
+/* Botão com cara de link ("Mudar") */
+.link { background: none; border: 0; padding: 4px 0; color: var(--accent); font-size: 14px; text-decoration: underline; cursor: pointer; min-height: 32px; }
+
+.empty { padding: 28px 16px; text-align: center; color: var(--ink-2); border: 1px dashed var(--line); border-radius: 10px; }
+.foot { color: var(--ink-2); font-size: 14px; }
+
+/* ------------------------------------------------------------
+   6. ENTREGAS DO DIA, SERVIÇOS E RELATÓRIO
+   ------------------------------------------------------------ */
+
+/* .stack = uma pilha de seções com espaço entre elas */
+.stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* Mensagem de status (salvo, erro). */
+.status { margin: 0; padding: 10px 12px; border-radius: 6px; font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+.status.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.status.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+
+.hint { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+/* Campo curto (valores em reais) */
+.in.sm { max-width: 160px; font-variant-numeric: tabular-nums; }
+
+/* Escolha do serviço: botões lado a lado; o escolhido fica na cor de destaque. */
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg .b2[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg .plus { background: transparent; border-style: dashed; color: var(--accent); }
+#novo .in { flex: 1 1 160px; }
+
+/* Barra das entregas do dia */
+.turno-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.turno-box.open { border-color: var(--accent); }
+.turno-t { font: 700 28px/1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.turno-nums { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.turno-nums > div { padding: 10px 8px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.turno-nums > div + div { border-left: 1px solid var(--line); }
+.turno-nums b { font: 700 28px/1 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Rotas já terminadas */
+.rotas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rotas li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.rotas li:last-child { border-bottom: 0; }
+.rl { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rl .n { font-weight: 600; }
+
+/* Card entregue: borda verde e um pouco mais apagado */
+.card.done { border-color: var(--ok); }
+.card.done .body { opacity: .78; }
+.ent { min-height: 40px; }
+
+/* Relatório */
+h2 { margin: 0; }
+.rel-s { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.rel-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rel-h b { font: 700 24px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.rel-h span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rel-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rel-l li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rel-l .n { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.rel-l .in.sm { width: 110px; flex: none; }
+.rel-g { display: flex; flex-direction: column; gap: 6px; }
+.rel-g b { font: 700 40px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+#saldo { font-weight: 600; }
+
+/* [hidden] precisa ganhar de qualquer display definido acima. */
+[hidden] { display: none !important; }
+
+</style>
+
+
+  <main class="wrap">
+
+    <header>
+      <h1>Leitor de Pedidos</h1>
+      <p class="lead">Cole as mensagens do WhatsApp. Cada pedido vira um card pronto pra colocar no Spoke.</p>
+    </header>
+
+    
+    <section class="turno" id="turno" aria-label="Entregas do dia"></section>
+
+    
+    <p class="status" id="status" hidden></p>
+
+    
+    <div class="stack" id="main">
+
+      <section class="paste" aria-label="Mensagens">
+        <div class="f">
+          <span class="lab">Serviço</span>
+          <div class="seg" id="servicos"></div>
+          <div class="row" id="novo" hidden>
+            <input class="in" id="novoNome" placeholder="Nome do serviço" autocomplete="off">
+            <button class="b1" id="novoOk" type="button">Salvar</button>
+          </div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="valorPadrao">Valor por entrega (R$)</label>
+          <input class="in sm" id="valorPadrao" inputmode="decimal" autocomplete="off">
+          <span class="hint">Vale pra todos os cards. Em entrega mais longa, mude só no card dela.</span>
+        </div>
+
+        <div class="paste-head">
+          <label class="lab" for="src">Mensagens coladas</label>
+          <span class="demo" id="demo">Exemplo com dados inventados</span>
+        </div>
+        <textarea id="src" spellcheck="false" placeholder="Cole aqui as mensagens do WhatsApp"></textarea>
+        <div class="row">
+          <button class="b1" id="run" type="button">Ler pedidos</button>
+          <button class="b2" id="clear" type="button">Limpar</button>
+        </div>
+      </section>
+
+      <section class="sum" id="sum" aria-label="Resumo da rota"></section>
+
+      <div class="row">
+        <button class="b2" id="copyall" type="button" style="flex:1 1 auto">Copiar lista toda</button>
+        <button class="b1" id="terminar" type="button">Terminar rota</button>
+      </div>
+      <p class="hint" id="hintfim" hidden></p>
+      <div class="notes" id="fim"></div>
+
+      <section class="list" id="list" aria-label="Pedidos"></section>
+      <p class="foot" id="foot" hidden></p>
+    </div>
+
+    
+    <section class="stack" id="rel" hidden></section>
+
+  </main>
+
+  
+  
+<script>
+/* ============================================================
+   parser.js  —  O "cérebro" do projeto
+   ------------------------------------------------------------
+   Recebe o texto copiado do WhatsApp e devolve uma lista de
+   pedidos organizados.
+
+   NÃO usa inteligência artificial. Usa REGRAS: o programa
+   procura padrões no texto (como "PAGO", "R$", "CEP") e
+   decide o que cada linha significa. Por isso o resultado é
+   sempre igual para a mesma mensagem.
+
+   Este arquivo não mexe na tela (HTML). Ele só pega texto e
+   devolve dados. Isso é de propósito: dá pra testar no Node,
+   sem navegador (veja test/testar.js).
+
+   Etapas:
+     1. Separar as mensagens        (splitMessages)
+     2. Ler o endereço              (parseAddress e ajudantes)
+     3. Ler o pagamento             (parsePay)
+     4. Achar o refri               (fmtRefri, REFRI_RE)
+     5. Montar um pedido completo   (parseBody)
+     6. Função principal            (parseOrders)
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   FUNÇÕES AJUDANTES (pequenas ferramentas usadas em todo lugar)
+   ------------------------------------------------------------ */
+
+// Tira os acentos: "Açúcar" vira "Acucar".
+// Assim "CARTÃO" e "cartao" passam a ser a mesma coisa na hora de comparar.
+// normalize('NFD') separa a letra do acento; o replace apaga só os acentos.
+function noAccent(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Deixa o texto "comparável": sem acento, minúsculo, só letras e números.
+// Usado para saber se dois textos são "o mesmo" ("Rua São Geraldo" = "rua sao geraldo").
+function norm(s) {
+  return noAccent(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// O texto está todo em maiúsculas ou todo em minúsculas?
+function isUniform(s) {
+  return s === s.toUpperCase() || s === s.toLowerCase();
+}
+
+// "MARIA DA SILVA" -> "Maria da Silva"
+function titleCase(s) {
+  return s.toLowerCase()
+    // coloca em maiúscula a letra que vem no começo ou depois de espaço, ponto, "(" ou "-"
+    // (\p{L} = qualquer letra, inclusive com acento; a flag "u" liga isso)
+    .replace(/(^|[\s.(\-])(\p{L})/gu, function (m, p, c) { return p + c.toUpperCase(); })
+    // palavras pequenas ficam minúsculas no meio do nome: "de", "da", "do"...
+    .replace(/(\s)(De|Da|Do|Das|Dos|E)(?=\s)/g, function (m, sp, w) { return sp + w.toLowerCase(); });
+}
+
+// Só arruma a capitalização se o texto estiver "gritando" (tudo maiúsculo)
+// ou tudo minúsculo. Se já estiver misturado ("Maria Paula"), deixa como está.
+function smartCase(s) {
+  return isUniform(s) ? titleCase(s) : s;
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 1 — SEPARAR AS MENSAGENS
+   O WhatsApp coloca um cabeçalho antes de cada mensagem:
+       [18/10, 12:27] Nome do contato: texto da mensagem
+   Vamos usar esse cabeçalho como "divisória" entre os pedidos.
+   ------------------------------------------------------------ */
+
+// Dois formatos de cabeçalho: iPhone (com colchetes) e Android (com hífen).
+// Cada regex captura: (1) a data, (2) a hora, (3) quem enviou.
+var HEADERS = [
+  // [18/10, 12:27] Fulano:
+  { src: '^\\[(\\d{1,2}\\/\\d{1,2})(?:\\/\\d{2,4})?,?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\]\\s*([^:\\n]{1,80}?):[ \\t]?', fl: 'gm' },
+  // 18/10/2026 12:27 - Fulano:
+  { src: '^(\\d{1,2}\\/\\d{1,2})\\/\\d{2,4},?\\s+(\\d{1,2}:\\d{2})(?::\\d{2})?\\s+-\\s+([^:\\n]{1,80}?):[ \\t]?', fl: 'gm' }
+];
+
+// Recebe o texto inteiro e devolve uma lista: [{date, time, body}, ...]
+// "body" é o texto da mensagem sem o cabeçalho.
+function splitMessages(text) {
+  // Tira caracteres invisíveis que o WhatsApp às vezes coloca.
+  text = text.replace(/\r/g, '').replace(/[‎‏‪-‮]/g, '');
+
+  // Tenta cada formato de cabeçalho até achar um que funcione.
+  for (var k = 0; k < HEADERS.length; k++) {
+    var re = new RegExp(HEADERS[k].src, HEADERS[k].fl);
+    var hits = [], m;
+    // re.exec vai achando um cabeçalho por vez; guardamos onde cada um começa e termina.
+    while ((m = re.exec(text))) {
+      hits.push({ idx: m.index, end: m.index + m[0].length, date: m[1], time: m[2] });
+    }
+    if (hits.length) {
+      var out = [];
+      // Se tinha texto ANTES do primeiro cabeçalho, também é um pedido (sem data).
+      var lead = text.slice(0, hits[0].idx);
+      if (lead.trim()) out.push({ date: '', time: '', body: lead });
+      // A mensagem vai do fim de um cabeçalho até o começo do próximo.
+      for (var i = 0; i < hits.length; i++) {
+        out.push({
+          date: hits[i].date,
+          time: hits[i].time,
+          body: text.slice(hits[i].end, i + 1 < hits.length ? hits[i + 1].idx : text.length)
+        });
+      }
+      return out;
+    }
+  }
+  // Nenhum cabeçalho: trata o texto todo como UM pedido.
+  return [{ date: '', time: '', body: text }];
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 2 — ENDEREÇO
+   Existem dois jeitos de o endereço chegar:
+
+   A) "Completo" (gerado pelo sistema do restaurante), separado por " - ":
+      R. Osvaldo Cruz, 201 - Casa - Barra , Muriaé/MG - CEP 36880-000 - Ao lado da garagem
+      rua+número - complemento - bairro , cidade/UF - CEP - referência
+
+   B) "Digitado pelo cliente", sem padrão:
+      Rua santa Catarina nº 209 vale verde
+      Rua Vanessa tureta n78 bairro Santo Antônio
+
+   Para cada um temos uma função. No fim o resultado é sempre:
+      addr   -> "Rua X, 123"   (o que vai pro Spoke)
+      bairro -> "Barra"
+      extras -> ["Casa de cima", "Atrás do posto"]  (vão pra observação)
+   ------------------------------------------------------------ */
+
+// Palavras que sozinhas NÃO são um nome de rua (para não confundir "Rua 7 de Setembro").
+var TYPE_ONLY = /^(r|rua|av|avenida|al|alameda|tv|travessa|beco|estrada|rodovia|rod|praca|pca|pc|br|mg)\.?$/i;
+
+// Jeitos de escrever "número": "nº", "n", "n.", "no", "número", "num".
+// Fica numa string porque vamos montar regex maiores usando ela.
+var NUM_PREFIX = '(?:n[º°o]?\\.?|n[uú]mero|num\\.?)';
+
+// Complementos que aparecem logo depois do número: "apt 802", "bloco B", "casa", "fundos"...
+var COMP_RE = /^(?:ap(?:to|artamento|t)?\.?\s*\d+[a-z]?|bloco\s*\w+|casa\s*\d*|fundos|loja\s*\w*|sala\s*\w*|\d+\s*[ºo°]?\s*andar)(?=$|[\s,.\-])/i;
+
+// Texto que COMEÇA como nome de rua (usado para perceber que é referência, não bairro).
+var STREET_START = /^(r|rua|av|avenida|al|alameda|tv|travessa|beco|estrada|rodovia)\b\.?/i;
+
+// "nº 209" -> "209"   |   "06" -> "6"
+function cleanNum(n) {
+  n = n.replace(new RegExp('^' + NUM_PREFIX + '\\s*', 'i'), '').trim();
+  if (/^\d+$/.test(n) && n.length > 1) n = String(parseInt(n, 10)); // tira zero à esquerda
+  return n;
+}
+
+// Arruma o nome da rua: tira espaços sobrando e abreviações do começo.
+// "R. Osvaldo Cruz" -> "Rua Osvaldo Cruz"
+function fixStreet(st) {
+  st = st.replace(/\s+/g, ' ').replace(/[\s,\-]+$/, '').trim();
+  return st.replace(/^R\.?\s+/i, 'Rua ').replace(/^Av\.?\s+/i, 'Avenida ')
+    .replace(/^Tv\.?\s+/i, 'Travessa ').replace(/^Al\.?\s+/i, 'Alameda ');
+}
+
+// Separa "rua" e "número" de um texto como "Rua Santa Marcelina 203 Santa Terezinha".
+// Devolve { street, number, rest }  (rest = o que sobrou depois do número)
+function splitStreetNumber(s) {
+  s = s.trim();
+  var m;
+
+  // Tentativa 1: número depois de uma vírgula ("Rua Vicente Alves , 70 AP.103").
+  // Só vale se o texto antes da vírgula não termina em número.
+  var comma = new RegExp(',\\s*(' + NUM_PREFIX + '\\s*)?(\\d+[A-Za-z]?)(?![\\d])', 'i');
+  m = comma.exec(s);
+  if (m) {
+    var bef = s.slice(0, m.index).trim();
+    if (bef && !/\d$/.test(bef) && !TYPE_ONLY.test(noAccent(bef))) {
+      return { street: bef, number: cleanNum(m[2]), rest: s.slice(m.index + m[0].length) };
+    }
+  }
+
+  // Tentativa 2: o primeiro número solto no texto.
+  // (^|[\s,]) = o número tem que começar o texto ou vir depois de espaço/vírgula.
+  var re = new RegExp('(^|[\\s,])(' + NUM_PREFIX + '\\s*)?(\\d+[A-Za-z]?)(?![\\d])', 'gi');
+  while ((m = re.exec(s))) {
+    var start = m.index + m[1].length;
+    var before = s.slice(0, start).replace(/[\s,\-]+$/, '');
+    // Se antes do número só tem "Rua" (ex.: "Rua 7 de Setembro"), esse número é do nome da rua. Pula.
+    if (!before || TYPE_ONLY.test(noAccent(before))) continue;
+    return { street: before, number: cleanNum(m[3]), rest: s.slice(m.index + m[0].length) };
+  }
+
+  // Tentativa 3: "s/n" (sem número).
+  var sn = /(^|[\s,])(s\/?n)(?=$|[\s,])/i.exec(s);
+  if (sn) return { street: s.slice(0, sn.index), number: 's/n', rest: s.slice(sn.index + sn[0].length) };
+
+  // Não achou número nenhum: devolve o texto todo como "rua".
+  // (É assim que "Pronto socorro, Hospital X" passa; o aviso na tela cuida do resto.)
+  return { street: s, number: '', rest: '' };
+}
+
+// Endereço digitado pelo cliente (sem padrão).
+function parseInformal(s) {
+  var r = splitStreetNumber(s);
+  var extras = [], bairro = '';
+
+  // Depois do número pode vir: complemento(s), bairro e/ou referência.
+  var rest = (r.rest || '').replace(/^[\s,\-–.]+/, '');
+
+  // 1) Tira os complementos do começo ("apt 802", "casa"...), um por vez.
+  while (rest) {
+    var m = rest.match(COMP_RE);
+    if (!m) break;
+    extras.push(m[0].trim());
+    rest = rest.slice(m[0].length).replace(/^[\s,\-–.]+/, '');
+  }
+
+  // 2) O que sobrou é o bairro? Tira a palavra "bairro" do começo, se tiver.
+  rest = rest.replace(/^(bairro|b\.|bº)\s*/i, '').trim();
+  if (rest) {
+    // Se começa como rua ou é comprido demais, é uma referência ("Rua do campo, rua sem saída").
+    if (STREET_START.test(noAccent(rest)) || rest.split(/\s+/).length > 4) extras.push(rest);
+    else bairro = rest.replace(/[.,;]+$/, ''); // senão, é o bairro
+  }
+  return { street: fixStreet(r.street), number: r.number, bairro: bairro, extras: extras };
+}
+
+// Parece um complemento? ("Casa", "Ap 3", "Bloco A"...)
+function looksComp(x) {
+  return /^(casa|ap|apt|apto|apartamento|bloco|fundos|frente|loja|sala|sobrado|predio|\d)/i.test(noAccent(x));
+}
+
+// Endereço "completo", já dividido em pedaços pelo " - ".
+// segs = ["R. Osvaldo Cruz, 201", "Casa", "Barra , Muriaé/MG", "CEP 36880-000", "Ao lado da garagem"]
+function parseSegmented(segs) {
+  var street, number, extras = [], bairro = '';
+
+  // O 1º pedaço é "rua, número". Pegamos a ÚLTIMA vírgula, assim ruas com
+  // número no nome ("Beco Rio Branco 2, 20") funcionam.
+  var lc = segs[0].match(new RegExp('^(.*\\S)\\s*,\\s*((?:' + NUM_PREFIX + '\\s*)?\\d+[A-Za-z]?|s\\/?n)$', 'i'));
+  if (lc) {
+    street = fixStreet(lc[1]);
+    number = cleanNum(lc[2]);
+  } else {
+    // Não veio no formato "rua, número": usa o método geral.
+    var h = splitStreetNumber(segs[0]);
+    street = fixStreet(h.street);
+    number = h.number;
+    if (h.rest && h.rest.replace(/[\s,\-–.]+/g, '')) extras.push(h.rest.trim());
+  }
+
+  var tail = segs.slice(1);                                  // o que vem depois da rua
+  var isCep = function (x) { return /^CEP\b/i.test(x); };
+
+  // Procura o pedaço que tem "Cidade/UF" (ex.: "Muriaé/MG"): o bairro vem logo antes da vírgula.
+  var cityIdx = -1;
+  for (var i = 0; i < tail.length; i++) {
+    if (/\/\s*[A-Z]{2}\s*$/.test(tail[i])) { cityIdx = i; break; }
+  }
+
+  var pre, post; // pre = complementos (antes do bairro) | post = referência (depois do CEP)
+  if (cityIdx >= 0) {
+    pre = tail.slice(0, cityIdx);
+    // "Barra , Muriaé/MG"  ->  bairro = "Barra"
+    var cm = tail[cityIdx].match(/^(.*?)\s*,\s*[^,]*\/\s*[A-Z]{2}\s*$/);
+    bairro = cm ? cm[1].trim() : '';
+    post = tail.slice(cityIdx + 1).filter(function (x) { return !isCep(x); });
+  } else {
+    // Sem cidade no texto: usa o CEP (se tiver) como divisória.
+    var cepI = -1;
+    for (var j = 0; j < tail.length; j++) { if (isCep(tail[j])) { cepI = j; break; } }
+    var p = cepI >= 0 ? tail.slice(0, cepI) : tail;
+    post = cepI >= 0 ? tail.slice(cepI + 1) : [];
+    pre = [];
+    if (p.length >= 2) { pre = p.slice(0, -1); bairro = p[p.length - 1]; }   // [complemento, bairro]
+    else if (p.length === 1) {
+      if (looksComp(p[0])) pre = [p[0]]; else bairro = p[0];                 // 1 pedaço só: ou é complemento ou bairro
+    }
+  }
+
+  // Complementos viram observação, menos os inúteis ("Casa", número repetido, nome da rua repetido).
+  pre.forEach(function (c) {
+    var n = norm(c);
+    if (!n || n === 'casa' || n === norm(number) || n === norm(street)) return;
+    if (n.indexOf(' ') < 0 && norm(street).split(' ').indexOf(n) >= 0) return; // ex.: "Beco" dentro de "Beco Rio Branco"
+    extras.push(c.trim());
+  });
+  if (post.length) extras.push(post.join(' - ').trim()); // referência ("Ao lado da garagem")
+
+  return { street: street, number: number, bairro: bairro, extras: extras };
+}
+
+// Decide qual dos dois jeitos usar e monta o resultado final.
+// "lines" = linhas do bloco de endereço (a 1ª é o endereço; as outras são referência).
+function parseAddress(lines) {
+  var s = lines[0].replace(/\s+/g, ' ').trim();
+  var segs = s.split(/\s+-\s+/);   // divide nos " - "
+  // Formato completo = tem " - " e o 1º pedaço tem número.
+  var res = (segs.length >= 2 && /\d/.test(segs[0])) ? parseSegmented(segs) : parseInformal(s);
+  res.extras = res.extras.concat(lines.slice(1));  // linhas extras = referência
+  var addr = res.number ? res.street + ', ' + res.number : res.street;
+  return { addr: addr, bairro: res.bairro ? smartCase(res.bairro) : '', extras: res.extras };
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 3 — PAGAMENTO
+   Resultado: { kind, amount, trocoPara }
+     kind: 'pago' | 'dinheiro' | 'cartao' | 'pix'
+           | 'unknown' (tem valor mas não disse a forma) | 'none' (nada informado)
+   ------------------------------------------------------------ */
+
+// "42,32" -> 42.32   |   "1.234,50" -> 1234.5   |   "96" -> 96
+function parseAmount(str) {
+  var s = String(str).trim();
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');   // vírgula decimal: ponto é milhar
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');      // "1.234" = mil duzentos e trinta e quatro
+  var n = parseFloat(s);
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+function parsePay(lines) {
+  // Junta as linhas de pagamento, sem acento e em maiúsculas, para facilitar a busca.
+  var N = noAccent(lines.join(' | ')).toUpperCase();
+
+  // Valor: procura "R$" seguido de número ("R$96", "R$ 42,32").
+  var am = N.match(/R\$\s*(\d[\d.]*(?:,\d{1,2})?)/);
+  var amount = am ? parseAmount(am[1]) : null;
+
+  var hasPago = /\bPAGO\b/.test(N);                       // \b = limite de palavra
+  var hasReceber = /\b(RECEBER|COBRAR)\b/.test(N);
+
+  // "TROCO PRA 100" -> 100
+  var tm = N.match(/TROCO\s*(?:PARA|PRA|P\/|P\b)?\s*(?:R\$\s*)?(\d+(?:[.,]\d+)?)/);
+  var trocoPara = tm ? parseAmount(tm[1]) : null;
+
+  var kind;
+  if (hasPago && !hasReceber) {
+    kind = 'pago';
+  } else {
+    // Descobre a forma de pagamento.
+    var forma = null;
+    if (/\bCARTAO\b|CREDITO|DEBITO/.test(N)) forma = 'cartao';
+    else if (/\bPIX\b/.test(N)) forma = 'pix';
+    else if (/DINHEIRO|ESPECIE/.test(N) || trocoPara !== null) forma = 'dinheiro'; // pediu troco = é dinheiro
+
+    if (forma && amount !== null) kind = forma;     // tem forma E valor: tudo certo
+    else if (!lines.length) kind = 'none';          // nenhuma linha de pagamento
+    else kind = 'unknown';                          // tem algo, mas falta forma ou valor -> a tela pede confirmação
+  }
+  return { kind: kind, amount: amount, trocoPara: kind === 'dinheiro' ? trocoPara : null };
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 4 — REFRI
+   Só nos interessa SE tem refri e QUAL. A comida não aparece no card.
+   Para adicionar uma bebida nova, é só colocar o nome na lista abaixo
+   (sem acento, em MAIÚSCULAS, separado por |).
+   ------------------------------------------------------------ */
+var REFRI_RE = /\b(COCA|GUARANA|FANTA|SPRITE|PEPSI|KUAT|SCHWEPPES|SUCO|AGUA|REFRI|REFRIGERANTE|H2O|SODA)\b/;
+
+// "1 COCA ZERO MINI" -> "Coca Zero mini"   |   "2 GUARANÁ 2L" -> "2x Guaraná 2L"
+function fmtRefri(line) {
+  var qty = 1, t = line;
+  // Quantidade no começo: 1 ou 2 dígitos seguidos de espaço (ou "x").
+  // "600ML" não é quantidade porque tem 3 dígitos e não tem espaço depois.
+  var m = line.match(/^(\d{1,2})\s*(?:x\s+|\s+)(.*)$/i);
+  if (m) { qty = parseInt(m[1], 10); t = m[2]; }
+
+  t = t.replace(/\s+/g, ' ').trim().toLowerCase().split(' ').map(function (w) {
+    if (/^\d+([.,]\d+)?l$/.test(w)) return w.toUpperCase();                                          // 2l -> 2L
+    if (/^\d+([.,]\d+)?ml$/.test(w) || w === 'mini' || w === 'lata' || w === 'ml') return w;         // fica minúsculo
+    return w.charAt(0).toUpperCase() + w.slice(1);                                                    // Coca, Zero...
+  }).join(' ');
+
+  return (qty > 1 ? qty + 'x ' : '') + t;
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 5 — MONTAR UM PEDIDO
+   Cada pedido (depois de tirar o cabeçalho) tem blocos separados por
+   linha em branco:
+
+        [endereço]       <- bloco 1
+        [nome]           <- bloco 2
+        [itens]          <- bloco 3 (opcional)
+        [pagamento]      <- bloco 4
+        [observações]    <- o que não encaixar em nada acima
+   ------------------------------------------------------------ */
+
+// Linha que fala de pagamento? (usada pra separar pagamento do resto)
+var PAY_LINE = /\bPAGO\b|R\$|\bRECEBER\b|\bTROCO\b|\bCARTAO\b|\bDINHEIRO\b|\bPIX\b/;
+
+// Recebe o texto de UMA mensagem e devolve o pedido (ou null se não der pra entender).
+function parseBody(body) {
+  // Limpa cada linha: tira links (o Spoke recebe o endereço em texto), espaços repetidos e pontas.
+  var lines = body.split('\n').map(function (l) {
+    return l.replace(/https?:\/\/\S+/gi, '').replace(/\s+/g, ' ').trim();
+  });
+
+  // Agrupa as linhas em blocos, usando as linhas em branco como divisória.
+  var sections = [], cur = [];
+  lines.forEach(function (l) {
+    if (l) cur.push(l);
+    else if (cur.length) { sections.push(cur); cur = []; }
+  });
+  if (cur.length) sections.push(cur);
+  if (!sections.length) return null;
+
+  var addrLines, nameLine, rest = [], warn = '';
+  if (sections.length >= 2) {
+    addrLines = sections[0];                 // bloco 1 = endereço
+    nameLine = sections[1][0];               // 1ª linha do bloco 2 = nome
+    rest = sections[1].slice(1);             // sobras do bloco 2
+    sections.slice(2).forEach(function (s) { rest = rest.concat(s); }); // blocos 3, 4...
+  } else {
+    // Mensagem sem linhas em branco: chuta que a 1ª linha é o endereço e a 2ª é o nome.
+    var s0 = sections[0];
+    if (s0.length < 2) return null;
+    addrLines = [s0[0]];
+    nameLine = s0[1];
+    rest = s0.slice(2);
+    warn = 'Sem linhas em branco na mensagem: confira o nome.';
+  }
+
+  // Se o "nome" na verdade é uma linha de pagamento (ex.: "PAGO"), o nome está faltando.
+  if (PAY_LINE.test(noAccent(nameLine).toUpperCase())) {
+    rest.unshift(nameLine);
+    nameLine = '';
+    warn = 'Nome não encontrado.';
+  }
+
+  // Classifica cada linha restante: pagamento, item, ou observação.
+  var payLines = [], itemLines = [], obs = [];
+  rest.forEach(function (l) {
+    var N = noAccent(l).toUpperCase();
+    if (PAY_LINE.test(N)) payLines.push(l);                              // "PAGO", "R$..."
+    else if (/^\d/.test(l) || /MARMIT/.test(N)) itemLines.push(l);       // começa com número ("1 COCA", "200G ...")
+    else obs.push(l);                                                    // qualquer outra coisa = observação
+  });
+
+  // Procura refri nas linhas de itens (só nelas, para não confundir com "caixa d'água" do endereço).
+  var refri = [];
+  itemLines.forEach(function (l) {
+    // O que está entre parênteses vira observação: "100G SALPICÃO (ESCREVER BR)".
+    var clean = l.replace(/\(([^)]*)\)/g, function (m, g) { if (g.trim()) obs.push(g.trim()); return ' '; })
+      .replace(/\s+/g, ' ').trim();
+    if (REFRI_RE.test(noAccent(clean).toUpperCase())) refri.push(fmtRefri(clean));
+  });
+
+  var a = parseAddress(addrLines);
+  return {
+    name: nameLine ? smartCase(nameLine) : '',
+    bairro: a.bairro,
+    addr: a.addr,
+    semEnd: false,                        // "vai sem endereço?" (a tela muda isso)
+    pay: parsePay(payLines),
+    refri: refri,
+    obs: obs.concat(a.extras),            // observações da mensagem primeiro, depois as do endereço
+    warn: warn
+  };
+}
+
+
+/* ------------------------------------------------------------
+   ETAPA 6 — FUNÇÃO PRINCIPAL
+   É a única que a tela precisa chamar:
+        var resultado = parseOrders(textoColado);
+        resultado.orders   -> lista de pedidos
+        resultado.ignored  -> quantas mensagens não deu pra entender
+   ------------------------------------------------------------ */
+function parseOrders(text) {
+  var msgs = splitMessages(text || '');
+  var orders = [], ignored = 0;
+  msgs.forEach(function (m) {
+    var o = parseBody(m.body);
+    if (!o) { if (m.body.trim()) ignored++; return; }
+    o.date = m.date;
+    o.time = m.time;
+    orders.push(o);
+  });
+  return { orders: orders, ignored: ignored };
+}
+
+// Isto só existe para o Node conseguir importar o arquivo nos testes.
+// No navegador, "module" não existe e essa linha é ignorada.
+
+</script>
+<script>
+/* ============================================================
+   storage.js  —  Onde os dados ficam guardados
+   ------------------------------------------------------------
+   O app precisa lembrar de coisas mesmo se você fechar a página:
+   as entregas do dia, os valores por serviço, a rota em andamento.
+
+   Aqui usamos o localStorage: uma "gavetinha" do próprio navegador,
+   que guarda texto e não some quando a página fecha.
+   (Os dados ficam só neste aparelho e neste navegador.)
+
+   Toda gaveta tem a mesma interface (init, load, save, arquivar).
+   O app.js só conversa com "store" e não sabe COMO é guardado.
+   Isso permite trocar o jeito de guardar (por exemplo, por um banco
+   de dados na internet) sem mexer no resto do código.
+   ============================================================ */
+
+var localStoreRef = (function () {
+
+  var CHAVE = 'leitor-pedidos:estado';   // nome da gaveta do estado atual
+
+  // Lê um texto guardado e transforma em objeto. Se não existir ou estiver
+  // quebrado, devolve null (try/catch evita que um erro derrube a página).
+  function ler(chave) {
+    try {
+      var txt = localStorage.getItem(chave);
+      return txt ? JSON.parse(txt) : null;
+    } catch (e) { return null; }
+  }
+
+  // Guarda um objeto como texto. Devolve true se deu certo.
+  function gravar(chave, obj) {
+    try { localStorage.setItem(chave, JSON.stringify(obj)); return true; }
+    catch (e) { return false; }
+  }
+
+  return {
+    // Prepara o armazenamento. Aqui não precisa de nada.
+    init: function () { return Promise.resolve('local'); },
+
+    // Devolve o estado salvo (ou null na primeira vez).
+    load: function () { return Promise.resolve(ler(CHAVE)); },
+
+    // Salva o estado atual. Rejeita (dá erro) se não conseguir gravar.
+    save: function (obj) {
+      return gravar(CHAVE, obj) ? Promise.resolve() : Promise.reject(new Error('sem espaço ou bloqueado'));
+    },
+
+    // Guarda um turno FECHADO no histórico (um item por turno).
+    arquivar: function (id, obj) {
+      return gravar('leitor-pedidos:hist:' + id, obj) ? Promise.resolve() : Promise.reject(new Error('sem espaço ou bloqueado'));
+    }
+  };
+
+})();
+
+/* Armazenamento da versão publicada como artefato: usa o banco do artefato (db),
+   e cai no localStorage se o db não estiver disponível. */
+var store = (function () {
+  var db = null, usandoDb = false;
+  var api = {
+    aviso: '',
+    init: function () {
+      var p = (window.claude && window.claude.use) ? window.claude.use('db') : Promise.resolve(null);
+      return p.then(function (d) {
+        db = d; usandoDb = !!d;
+        if (!usandoDb) api.aviso = 'Sem conexão com o banco: os dados ficam salvos só neste navegador.';
+        return usandoDb ? 'db' : 'local';
+      }, function () {
+        api.aviso = 'Sem conexão com o banco: os dados ficam salvos só neste navegador.';
+        return 'local';
+      });
+    },
+    load: function () {
+      if (!usandoDb) return localStoreRef.load();
+      return db.doc('app/estado').get().then(function (s) {
+        return s.exists ? JSON.parse(JSON.stringify(s.data())) : null;
+      });
+    },
+    save: function (obj) { return usandoDb ? db.doc('app/estado').set(obj) : localStoreRef.save(obj); },
+    arquivar: function (id, obj) { return usandoDb ? db.doc('historico/' + id).set(obj) : localStoreRef.arquivar(id, obj); }
+  };
+  return api;
+})();
+
+</script>
+<script>
+/* ============================================================
+   app.js  —  A "ponte" entre a tela, o parser e o armazenamento
+   ------------------------------------------------------------
+   Organização:
+     1. Estado (os dados do app) e exemplo
+     2. Ajudantes (dinheiro, datas, serviços)
+     3. Cards dos pedidos
+     4. Barra das entregas do dia (abrir / fechar)
+     5. Terminar rota
+     6. Relatório do dia
+     7. Salvar e carregar
+     8. Copiar
+     9. Eventos (cliques, digitação)
+    10. Início
+   ============================================================ */
+
+(function () {
+
+  /* ----------------------------------------------------------
+     1. ESTADO
+     "S" guarda TUDO que precisa ser lembrado. Quando algo muda,
+     alteramos S, redesenhamos a tela e salvamos.
+     ---------------------------------------------------------- */
+
+  var SAMPLE = [
+    '[24/10, 11:00] Restaurante Exemplo: R. das Acácias, 120 - Casa - Jardim Primavera , Muriaé/MG - CEP 36880-000 - Portão azul ao lado da padaria',
+    '',
+    'https://maps.google.com/?q=-21.100000,-42.300000',
+    '',
+    'CARLOS',
+    '',
+    '1 COCA ZERO MINI',
+    '',
+    'PAGO',
+    '[24/10, 11:02] Restaurante Exemplo: Rua das Palmeiras nº 45 Bela Vista',
+    '',
+    'Renata',
+    '',
+    '2 Marmitex Op 1 M',
+    '',
+    'R$48 RECEBER TROCO PRA 100',
+    '[24/10, 11:04] Restaurante Exemplo: Av. Central, 890 - Sala 2 - Centro , Muriaé/MG - CEP 36880-000 - Prédio comercial',
+    '',
+    'SÔNIA',
+    '',
+    '300G CHURRASCO',
+    '',
+    'R$27,50',
+    '[24/10, 11:05] Restaurante Exemplo: Pronto socorro, Hospital Exemplo',
+    '',
+    'DAVI',
+    '',
+    '1 MARMITEX OP 2 M',
+    '1 GUARANÁ LATA',
+    '',
+    'R$32,50 RECEBER CARTÃO',
+    '[24/10, 11:08] Restaurante Exemplo: R. dos Ipês, 15 - Casa - Alto da Serra , Muriaé/MG - CEP 36880-000',
+    '',
+    'MARTA',
+    '',
+    'PAGO',
+    '',
+    'MANDAR TALHER'
+  ].join('\n');
+
+  var S = {
+    v: 1,
+    // Serviços para os quais você entrega, cada um com o valor padrão por entrega.
+    servicos: [
+      { id: 'paradise', nome: 'Paradise Food', valor: 6 },
+      { id: 'donamesa', nome: 'Dona Mesa', valor: 6 }
+    ],
+    servicoId: 'paradise',   // serviço da rota que está na tela
+    texto: SAMPLE,           // o que está na caixa de texto
+    demo: true,              // true = ainda são os pedidos de exemplo
+    orders: [],              // os cards da rota atual
+    ignored: 0,              // mensagens que o parser não entendeu
+    // O turno (entregas do dia). null = fechado.
+    // { id, abertoEm, adiantamento, rotas: [ { id, servicoId, servicoNome, fimEm, entregas: [...] } ] }
+    turno: null
+  };
+
+  // Coisas só da tela, que NÃO precisam ser salvas.
+  var ui = {
+    pronto: false,     // terminou de carregar o que estava salvo?
+    semSalvar: false,  // se deu erro ao carregar, não salvamos (pra não apagar o que já existia)
+    view: 'main',      // 'main' = tela principal | 'rel' = relatório
+    novo: false,       // caixinha de "novo serviço" aberta?
+    apagar: null,      // id da rota esperando confirmação de apagar
+    descartar: null    // ação esperando você confirmar que pode descartar a rota
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var ta = $('src');
+  var list = $('list');
+
+
+  /* ----------------------------------------------------------
+     2. AJUDANTES
+     ---------------------------------------------------------- */
+
+  // Protege o HTML (troca < > & " ' por códigos seguros).
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function r2(n) { return Math.round(n * 100) / 100; }
+
+  // 96 -> "R$96"  |  28.56 -> "R$28,56"
+  function money(n) {
+    if (n == null) return '';
+    return 'R$' + (Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
+  }
+  // 6.5 -> "6,5"  (para mostrar dentro dos campos)
+  function fmtNum(n) { return String(n == null ? '' : n).replace('.', ','); }
+
+  // "6", "6,50", "6.5" -> número. Texto inválido vira 0.
+  function parseMoney(s) {
+    var t = String(s == null ? '' : s).trim();
+    if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.');
+    var n = parseFloat(t);
+    return isFinite(n) && n > 0 ? r2(n) : 0;
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function hhmm(iso) { var d = new Date(iso); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function ddmm(iso) { var d = new Date(iso); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+  // Acha um serviço pelo id (se não achar, devolve o primeiro).
+  function svc(id) {
+    for (var i = 0; i < S.servicos.length; i++) if (S.servicos[i].id === id) return S.servicos[i];
+    return S.servicos[0];
+  }
+
+  // Mensagem curta de status. kind: 'ok' (some sozinha), 'warn' ou 'info'.
+  var statusTimer = null;
+  function setStatus(msg, kind) {
+    var el = $('status');
+    if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+    if (!msg) { el.hidden = true; return; }
+    el.hidden = false;
+    el.className = 'status ' + (kind || 'info');
+    el.textContent = msg;
+    if (kind === 'ok') statusTimer = setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+
+  /* ----------------------------------------------------------
+     3. CARDS DOS PEDIDOS
+     ---------------------------------------------------------- */
+
+  function hasNum(o) { return /\d/.test(o.addr); }
+
+  function pending(o) {
+    return o.pay.kind === 'unknown' || o.pay.kind === 'none'
+        || (!hasNum(o) && !o.semEnd) || !o.name.trim() || !!o.warn;
+  }
+
+  // Etiqueta do topo do card: Entregue (verde) / Conferir (laranja) / Pronto (verde).
+  function chipInfo(o) {
+    if (o.feito) return { cls: 'ok', txt: 'Entregue' };
+    if (pending(o)) return { cls: 'warn', txt: 'Conferir' };
+    return { cls: 'ok', txt: 'Pronto' };
+  }
+
+  function nameText(o) {
+    var n = o.name.trim(), b = o.bairro.trim();
+    return b ? n + ' - ' + b : n;
+  }
+
+  function trocoText(o) {
+    var p = o.pay;
+    if (p.kind !== 'dinheiro' || p.amount == null) return '';
+    if (p.trocoPara != null) {
+      var d = r2(p.trocoPara - p.amount);
+      return d >= 0 ? 'Troco pra ' + money(p.trocoPara) + ': devolver ' + money(d)
+                    : 'Troco pra ' + money(p.trocoPara) + ' é menor que o valor';
+    }
+    var notes = [10, 20, 50, 100, 200].filter(function (n) { return n > p.amount; }).slice(0, 2);
+    if (!notes.length) return '';
+    return 'Troco: ' + notes.map(function (n) { return 'de R$' + n + ' = ' + money(r2(n - p.amount)); }).join(' · ');
+  }
+
+  function payLabel(k) { return { dinheiro: 'dinheiro', cartao: 'cartão', pix: 'Pix' }[k]; }
+
+  function payHTML(o) {
+    var p = o.pay, h = '';
+    if (p.kind === 'pago') {
+      h = '<span class="tag ok">Pago</span>';
+      if (p.amount != null) h += '<button class="link" type="button" data-act="repay">Mudar</button>';
+      return h;
+    }
+    if (p.kind === 'dinheiro' || p.kind === 'cartao' || p.kind === 'pix') {
+      h = '<div class="pay-main"><strong>' + esc(money(p.amount)) + '</strong>receber ' + payLabel(p.kind) + '</div>';
+      var t = trocoText(o);
+      if (t) h += '<div class="sub">' + esc(t) + '</div>';
+      h += '<button class="link" type="button" data-act="repay">Mudar</button>';
+      return h;
+    }
+    var msg = p.kind === 'none' ? 'Pagamento não informado.'
+      : (p.amount != null ? money(p.amount) + ': confirmar a forma de pagamento.' : 'Falta o valor ou a forma de pagamento.');
+    h = '<div class="notice warn">' + esc(msg) + '</div><div class="row">';
+    if (p.amount != null) {
+      h += '<button class="b2" type="button" data-act="pay" data-v="dinheiro">Dinheiro</button>' +
+           '<button class="b2" type="button" data-act="pay" data-v="cartao">Cartão</button>' +
+           '<button class="b2" type="button" data-act="pay" data-v="pix">Pix</button>';
+    }
+    h += '<button class="b2" type="button" data-act="pay" data-v="pago">Já pago</button></div>';
+    return h;
+  }
+
+  function addrNote(o) {
+    if (hasNum(o)) return '';
+    if (o.semEnd) {
+      return '<div class="notice ok">Aceito sem número: segue como está.</div>' +
+             '<button class="b2" type="button" data-act="semend" aria-pressed="true">Vai sem endereço: sim</button>';
+    }
+    return '<div class="notice warn">Endereço sem número.</div>' +
+           '<button class="b2" type="button" data-act="semend" aria-pressed="false">Vai sem endereço</button>';
+  }
+
+  function nameNote(o) {
+    if (o.warn) return '<div class="notice warn">' + esc(o.warn) + '</div>';
+    if (!o.name.trim()) return '<div class="notice warn">Preencha o nome.</div>';
+    return '';
+  }
+
+  // Texto do botão "Entregue" conforme o estado.
+  function feitoLabel(o) { return o.feito ? 'Entregue' : 'Marcar entregue'; }
+
+  function cardHTML(o, i) {
+    var chip = chipInfo(o);
+    var when = (o.date + ' ' + o.time).trim() || 'sem data';
+    return '<article class="card' + (o.feito ? ' done' : '') + '" data-i="' + i + '">' +
+      '<header class="meta"><span class="idx">#' + (i + 1) + '</span><span>' + esc(when) + '</span>' +
+      '<span class="chip ' + chip.cls + '" id="chip-' + i + '">' + chip.txt + '</span></header>' +
+      '<div class="body">' +
+
+        // Entregue + valor desta entrega
+        '<div class="f"><div class="f-head"><span class="lab">Valor da entrega (R$)</span>' +
+          '<button class="b2 ent" type="button" data-act="feito" aria-pressed="' + (o.feito ? 'true' : 'false') + '">' + feitoLabel(o) + '</button></div>' +
+          '<input class="in sm" data-f="valorTxt" inputmode="decimal" aria-label="Valor da entrega" value="' + esc(o.valorTxt) + '" autocomplete="off"></div>' +
+
+        // Nome e bairro
+        '<div class="f"><div class="f-head"><span class="lab">Nome e bairro</span>' +
+          '<button class="cp" type="button" data-act="copy-name">Copiar</button></div>' +
+          '<div class="two"><input class="in nm" data-f="name" aria-label="Nome" placeholder="Nome" value="' + esc(o.name) + '" autocomplete="off">' +
+          '<input class="in" data-f="bairro" aria-label="Bairro" placeholder="bairro" value="' + esc(o.bairro) + '" autocomplete="off"></div>' +
+          '<div class="notes" id="nnote-' + i + '">' + nameNote(o) + '</div></div>' +
+
+        // Endereço
+        '<div class="f"><div class="f-head"><span class="lab">Endereço</span>' +
+          '<button class="cp" type="button" data-act="copy-addr">Copiar</button></div>' +
+          '<input class="in ad" data-f="addr" aria-label="Endereço" placeholder="Rua, número" value="' + esc(o.addr) + '" autocomplete="off">' +
+          '<div class="notes" id="anote-' + i + '">' + addrNote(o) + '</div></div>' +
+
+        // Pagamento
+        '<div class="f"><span class="lab">Pagamento</span><div class="pay" id="pay-' + i + '">' + payHTML(o) + '</div></div>' +
+
+        // Refri
+        '<div class="f"><span class="lab">Refri</span>' +
+          '<input class="in refri' + (o.refriText ? ' has' : '') + '" data-f="refriText" aria-label="Refri" placeholder="sem refri" value="' + esc(o.refriText) + '" autocomplete="off"></div>' +
+
+        // Observação
+        '<div class="f"><span class="lab">Observação</span>' +
+          '<input class="in" data-f="obsText" aria-label="Observação" placeholder="sem observação" value="' + esc(o.obsText) + '" autocomplete="off"></div>' +
+
+        '<button class="link" type="button" data-act="remover">Remover este pedido</button>' +
+      '</div></article>';
+  }
+
+  // Atualiza só as partes do card que mudam (sem tirar o cursor do campo).
+  function patchCard(i) {
+    var o = S.orders[i];
+    var card = list.querySelector('.card[data-i="' + i + '"]');
+    if (!card) return;
+    var chip = chipInfo(o);
+    var c = $('chip-' + i);
+    if (c) { c.className = 'chip ' + chip.cls; c.textContent = chip.txt; }
+    card.classList.toggle('done', !!o.feito);
+    var b = card.querySelector('[data-act="feito"]');
+    if (b) { b.setAttribute('aria-pressed', o.feito ? 'true' : 'false'); b.textContent = feitoLabel(o); }
+    var a = $('anote-' + i); if (a) a.innerHTML = addrNote(o);
+    var n = $('nnote-' + i); if (n) n.innerHTML = nameNote(o);
+    var p = $('pay-' + i); if (p) p.innerHTML = payHTML(o);
+    updateSummary();
+  }
+
+  function renderList() {
+    if (!S.orders.length) {
+      list.innerHTML = '<div class="empty">Nenhum pedido na tela. Cole as mensagens da rota e toque em Ler pedidos.</div>';
+    } else {
+      list.innerHTML = S.orders.map(cardHTML).join('');
+    }
+    var foot = $('foot');
+    if (S.ignored) {
+      foot.hidden = false;
+      foot.textContent = plural(S.ignored, 'mensagem foi ignorada', 'mensagens foram ignoradas') + ' por não ter endereço e nome.';
+    } else {
+      foot.hidden = true;
+    }
+  }
+
+  // Números do topo + estado do botão "Terminar rota".
+  function updateSummary() {
+    var n = S.orders.length, pend = 0, feitos = 0, din = 0, car = 0, pix = 0;
+    S.orders.forEach(function (o) {
+      if (pending(o) && !o.feito) pend++;
+      if (o.feito) feitos++;
+      var p = o.pay;
+      if (p.amount != null) {
+        if (p.kind === 'dinheiro') din += p.amount;
+        else if (p.kind === 'cartao') car += p.amount;
+        else if (p.kind === 'pix') pix += p.amount;
+      }
+    });
+    var h = '<div><span class="lab">Entregues</span><b>' + feitos + '/' + n + '</b></div>' +
+      '<div class="' + (pend ? 'w' : '') + '"><span class="lab">Conferir</span><b>' + pend + '</b></div>' +
+      '<div><span class="lab">Dinheiro</span><b>' + esc(money(r2(din)) || 'R$0') + '</b></div>' +
+      '<div><span class="lab">Cartão</span><b>' + esc(money(r2(car)) || 'R$0') + '</b></div>';
+    if (pix > 0) h += '<div><span class="lab">Pix</span><b>' + esc(money(r2(pix))) + '</b></div>';
+    $('sum').innerHTML = h;
+
+    $('copyall').disabled = !n;
+    var hint = $('hintfim'), btn = $('terminar');
+    var podeTerminar = ui.pronto && !!S.turno && !S.demo && n > 0;
+    btn.disabled = !podeTerminar;
+    if (S.demo && n) { hint.hidden = false; hint.textContent = 'Isto é um exemplo. Cole suas mensagens pra começar.'; }
+    else if (!S.turno && n) { hint.hidden = false; hint.textContent = 'Abra as entregas (lá em cima) pra poder terminar a rota.'; }
+    else hint.hidden = true;
+  }
+
+  // Serviços: botões de escolha + "+ Novo".
+  function renderServicos() {
+    var h = S.servicos.map(function (s) {
+      return '<button class="b2" type="button" data-sv="' + esc(s.id) + '" aria-pressed="' + (s.id === S.servicoId ? 'true' : 'false') + '">' + esc(s.nome) + '</button>';
+    }).join('');
+    h += '<button class="b2 plus" type="button" data-sv="__novo">+ Novo</button>';
+    $('servicos').innerHTML = h;
+    $('novo').hidden = !ui.novo;
+    $('valorPadrao').value = fmtNum(svc(S.servicoId).valor);
+  }
+
+  // Quando o valor padrão muda, os cards que você NÃO alterou na mão acompanham.
+  function aplicarValorPadrao() {
+    var v = svc(S.servicoId).valor;
+    var cards = list.querySelectorAll('.card');
+    S.orders.forEach(function (o, i) {
+      if (o.valorManual) return;
+      o.valor = v; o.valorTxt = fmtNum(v);
+      var inp = cards[i] && cards[i].querySelector('[data-f="valorTxt"]');
+      if (inp) inp.value = o.valorTxt;
+    });
+  }
+
+  // Transforma o texto colado em cards.
+  function lerPedidos(texto) {
+    var r = parseOrders(texto);           // <- função do parser.js
+    S.ignored = r.ignored;
+    var v = svc(S.servicoId).valor;
+    return r.orders.map(function (o) {
+      o.id = uid();
+      o.refriText = o.refri.join(' + ');
+      o.obsText = o.obs.join(' · ');
+      o.feito = false;
+      o.valor = v; o.valorTxt = fmtNum(v); o.valorManual = false;
+      return o;
+    });
+  }
+
+
+  /* ----------------------------------------------------------
+     4. BARRA DAS ENTREGAS DO DIA
+     ---------------------------------------------------------- */
+
+  function totais(t) {
+    var n = 0, g = 0, din = 0, car = 0, pix = 0;
+    t.rotas.forEach(function (r) {
+      r.entregas.forEach(function (d) {
+        n++; g += d.valor || 0;
+        var p = d.pay || {};
+        if (p.amount != null) {
+          if (p.kind === 'dinheiro') din += p.amount;
+          else if (p.kind === 'cartao') car += p.amount;
+          else if (p.kind === 'pix') pix += p.amount;
+        }
+      });
+    });
+    return { n: n, g: r2(g), din: r2(din), car: r2(car), pix: r2(pix) };
+  }
+
+  function renderTurno() {
+    var el = $('turno');
+    if (!ui.pronto) { el.innerHTML = '<div class="turno-box"><span class="lab">Entregas</span><p class="hint">Carregando seus dados…</p></div>'; return; }
+
+    if (!S.turno) {
+      el.innerHTML = '<div class="turno-box">' +
+        '<span class="lab">Entregas do dia</span><b class="turno-t">Fechadas</b>' +
+        '<p class="hint">Abra as entregas pra contar as corridas e gerar o relatório do dia.</p>' +
+        '<button class="b1" type="button" data-t="abrir">Abrir entregas</button></div>';
+      return;
+    }
+
+    var t = S.turno, tt = totais(t);
+    var rotas = t.rotas.map(function (r, i) {
+      var tot = r2(r.entregas.reduce(function (a, d) { return a + (d.valor || 0); }, 0));
+      var linha = '<span class="n">Rota ' + (i + 1) + ' · ' + esc(r.servicoNome) + '</span>' +
+                  '<span class="sub">' + plural(r.entregas.length, 'entrega', 'entregas') + ' · ' + money(tot) + ' · ' + hhmm(r.fimEm) + '</span>';
+      var acao = ui.apagar === r.id
+        ? '<span class="row"><button class="link" type="button" data-t="apagar-sim" data-r="' + r.id + '">Apagar de vez</button><button class="link" type="button" data-t="apagar-nao">Cancelar</button></span>'
+        : '<button class="link" type="button" data-t="apagar" data-r="' + r.id + '">Apagar rota</button>';
+      return '<li><div class="rl">' + linha + '</div>' + acao + '</li>';
+    }).join('');
+
+    el.innerHTML = '<div class="turno-box open">' +
+      '<span class="lab">Entregas abertas desde ' + hhmm(t.abertoEm) + '</span>' +
+      '<div class="turno-nums">' +
+        '<div><span class="lab">Corridas</span><b>' + tt.n + '</b></div>' +
+        '<div><span class="lab">Ganho</span><b>' + esc(money(tt.g) || 'R$0') + '</b></div>' +
+        '<div><span class="lab">Rotas</span><b>' + t.rotas.length + '</b></div>' +
+      '</div>' +
+      (rotas ? '<ul class="rotas">' + rotas + '</ul>' : '<p class="hint">Nenhuma rota terminada ainda.</p>') +
+      '<button class="b1" type="button" data-t="fechar">Fechar entregas</button></div>';
+  }
+
+
+  /* ----------------------------------------------------------
+     5. TERMINAR ROTA
+     ---------------------------------------------------------- */
+
+  function showFim(html) { $('fim').innerHTML = html; }
+  function clearFim() { $('fim').innerHTML = ''; }
+
+  // Ação do botão "Terminar rota": decide se salva direto ou se pergunta antes.
+  function terminarRota() {
+    if (!S.turno || S.demo || !S.orders.length) return;
+    var total = S.orders.length;
+    var feitos = S.orders.filter(function (o) { return o.feito; }).length;
+
+    if (feitos === total) { finalizar('todos'); return; }
+
+    if (feitos === 0) {
+      showFim('<div class="notice warn">Nenhum pedido está marcado como entregue.</div>' +
+        '<div class="row"><button class="b2" type="button" data-fim="todos">Contar todos (' + total + ')</button>' +
+        '<button class="b2" type="button" data-fim="cancelar">Cancelar</button></div>');
+      return;
+    }
+    showFim('<div class="notice warn">' + feitos + ' de ' + total + ' marcados como entregues. Os outros não contam, a não ser que você escolha contar todos.</div>' +
+      '<div class="row"><button class="b2" type="button" data-fim="marcados">Salvar só os ' + feitos + ' marcados</button>' +
+      '<button class="b2" type="button" data-fim="todos">Contar todos (' + total + ')</button>' +
+      '<button class="b2" type="button" data-fim="cancelar">Cancelar</button></div>');
+  }
+
+  // Guarda a rota dentro do turno e limpa a tela para a próxima.
+  function finalizar(modo) {
+    var lista = S.orders.filter(function (o) { return modo === 'todos' || o.feito; });
+    if (!lista.length || !S.turno) return;
+    var sv = svc(S.servicoId);
+    S.turno.rotas.push({
+      id: uid(),
+      servicoId: sv.id,
+      servicoNome: sv.nome,
+      fimEm: new Date().toISOString(),
+      entregas: lista.map(function (o) {
+        return {
+          id: uid(),
+          name: (o.name || '').trim() || 'Sem nome',
+          bairro: o.bairro || '',
+          addr: o.addr || '',
+          valor: o.valor || 0,
+          servicoId: sv.id,
+          pay: { kind: o.pay.kind, amount: o.pay.amount }
+        };
+      })
+    });
+    S.orders = []; S.texto = ''; S.ignored = 0; ta.value = '';
+    clearFim();
+    renderAll();
+    setStatus('Rota salva: ' + plural(lista.length, 'entrega', 'entregas') + '.', 'ok');
+    queueSave();
+  }
+
+  // Se a rota atual tem entregas marcadas e ainda não foi terminada,
+  // pergunta antes de apagar. "proxima" é o que fazer se você confirmar.
+  function seguroDescartar(proxima) {
+    var n = S.demo ? 0 : S.orders.filter(function (o) { return o.feito; }).length;
+    if (!n) { proxima(); return; }
+    ui.descartar = proxima;
+    showFim('<div class="notice warn">Esta rota tem ' + plural(n, 'entrega marcada', 'entregas marcadas') + ' e ainda não foi terminada. Se continuar, elas não contam.</div>' +
+      '<div class="row"><button class="b2" type="button" data-fim="descartar">Descartar rota</button>' +
+      '<button class="b2" type="button" data-fim="voltar">Voltar</button></div>');
+  }
+
+  function lerDaCaixa() {
+    S.texto = ta.value;
+    S.demo = false;
+    S.orders = lerPedidos(S.texto);
+    clearFim();
+    $('demo').hidden = true;
+    renderList(); updateSummary();
+    queueSave();
+  }
+
+  function limparRota() {
+    ta.value = ''; S.texto = ''; S.demo = false; S.orders = []; S.ignored = 0;
+    $('demo').hidden = true;
+    clearFim();
+    renderList(); updateSummary();
+    queueSave();
+    ta.focus();
+  }
+
+
+  /* ----------------------------------------------------------
+     6. RELATÓRIO DO DIA
+     ---------------------------------------------------------- */
+
+  // Junta as entregas por serviço, na ordem em que apareceram.
+  function agrupar(t) {
+    var ordem = [], mapa = {};
+    t.rotas.forEach(function (r) {
+      r.entregas.forEach(function (d) {
+        var k = d.servicoId || r.servicoId;
+        if (!mapa[k]) { mapa[k] = { id: k, nome: r.servicoNome, entregas: [] }; ordem.push(k); }
+        mapa[k].entregas.push(d);
+      });
+    });
+    return ordem.map(function (k) { return mapa[k]; });
+  }
+
+  function somaValor(arr) { return r2(arr.reduce(function (a, d) { return a + (d.valor || 0); }, 0)); }
+
+  function saldoInfo(t, tt) {
+    var a = t.adiantamento || 0;
+    var s = r2(tt.g - a);
+    if (s > 0) return { cls: 'warn', txt: 'A receber: ' + money(s) };
+    if (s < 0) return { cls: 'ok', txt: 'Recebeu a mais: ' + money(-s) };
+    return { cls: 'ok', txt: 'Tudo certo: saldo zerado' };
+  }
+
+  function clientesTxt(tt) {
+    var p = [];
+    if (tt.din) p.push('dinheiro ' + money(tt.din));
+    if (tt.car) p.push('cartão ' + money(tt.car));
+    if (tt.pix) p.push('Pix ' + money(tt.pix));
+    return p.length ? 'Recebido dos clientes: ' + p.join(' · ') : 'Recebido dos clientes: nada';
+  }
+
+  function renderRel() {
+    var t = S.turno, el = $('rel');
+    if (!t) { ui.view = 'main'; renderAll(); return; }
+    var grupos = agrupar(t), tt = totais(t);
+
+    var h = '<header><h1>Relatório do dia</h1><p class="lead">' + ddmm(t.abertoEm) + ' · aberto às ' + hhmm(t.abertoEm) + '</p></header>';
+
+    if (S.orders.length && !S.demo) {
+      h += '<div class="notice warn">Tem uma rota sem terminar (' + plural(S.orders.length, 'pedido', 'pedidos') + '). Ela não entra no relatório. Volte e toque em Terminar rota.</div>';
+    }
+    if (!grupos.length) h += '<div class="empty">Nenhuma entrega salva ainda.</div>';
+
+    grupos.forEach(function (g) {
+      h += '<section class="rel-s">' +
+        '<div class="rel-h"><b>' + esc(g.nome) + '</b><span id="sub-' + g.id + '">' + plural(g.entregas.length, 'entrega', 'entregas') + ' · ' + money(somaValor(g.entregas)) + '</span></div>' +
+        '<div class="f"><label class="lab" for="bulk-' + g.id + '">Valor por entrega neste serviço (R$)</label>' +
+          '<div class="row"><input class="in sm" id="bulk-' + g.id + '" inputmode="decimal" value="' + esc(fmtNum(svc(g.id).valor)) + '" autocomplete="off">' +
+          '<button class="b2" type="button" data-r="bulk" data-s="' + g.id + '">Aplicar a todas</button></div></div>' +
+        '<ul class="rel-l">' + g.entregas.map(function (d) {
+          return '<li><span class="n">' + esc(d.name) + '</span>' +
+            '<input class="in sm" data-r="valor" data-d="' + d.id + '" inputmode="decimal" aria-label="Valor de ' + esc(d.name) + '" value="' + esc(fmtNum(d.valor)) + '" autocomplete="off"></li>';
+        }).join('') + '</ul></section>';
+    });
+
+    h += '<section class="rel-s">' +
+      '<div class="rel-h"><b>Total</b><span id="tot-n"></span></div>' +
+      '<div class="rel-g"><span class="lab">Ganho</span><b id="tot-g"></b></div>' +
+      '<div class="f"><label class="lab" for="adiant">Adiantamento recebido (R$)</label>' +
+        '<input class="in sm" id="adiant" inputmode="decimal" value="' + esc(t.adiantamento ? fmtNum(t.adiantamento) : '') + '" placeholder="0" autocomplete="off"></div>' +
+      '<div class="notice" id="saldo"></div>' +
+      '<p class="hint" id="tot-c"></p></section>';
+
+    h += '<div class="row"><button class="b2" type="button" data-r="copiar" style="flex:1 1 auto">Copiar relatório</button>' +
+         '<button class="b2" type="button" data-r="voltar">Voltar</button></div>' +
+         '<button class="b1" type="button" data-r="confirmar">Confirmar fechamento</button>' +
+         '<p class="hint">Ao confirmar, o relatório fica salvo e as entregas do dia zeram. Copie antes, se quiser mandar.</p>';
+
+    el.innerHTML = h;
+    patchRel();
+  }
+
+  // Atualiza só os números do relatório (enquanto você digita valores).
+  function patchRel() {
+    var t = S.turno; if (!t) return;
+    var tt = totais(t);
+    agrupar(t).forEach(function (g) {
+      var s = $('sub-' + g.id);
+      if (s) s.textContent = plural(g.entregas.length, 'entrega', 'entregas') + ' · ' + money(somaValor(g.entregas));
+    });
+    $('tot-n').textContent = plural(tt.n, 'entrega', 'entregas');
+    $('tot-g').textContent = money(tt.g) || 'R$0';
+    var sd = saldoInfo(t, tt), sEl = $('saldo');
+    sEl.className = 'notice ' + sd.cls; sEl.textContent = sd.txt;
+    $('tot-c').textContent = clientesTxt(tt);
+  }
+
+  function relatorioTexto() {
+    var t = S.turno, tt = totais(t), L = ['📋 RELATÓRIO DE ENTREGAS — ' + ddmm(t.abertoEm), ''];
+    agrupar(t).forEach(function (g) {
+      L.push(g.nome + ' — ' + plural(g.entregas.length, 'entrega', 'entregas') + ' (' + money(somaValor(g.entregas)) + ')');
+      g.entregas.forEach(function (d) { L.push('• ' + d.name + ' — ' + money(d.valor || 0)); });
+      L.push('');
+    });
+    L.push('Total: ' + plural(tt.n, 'entrega', 'entregas') + ' · ' + money(tt.g));
+    if (t.adiantamento) L.push('Adiantamento: ' + money(t.adiantamento));
+    L.push(saldoInfo(t, tt).txt);
+    L.push(clientesTxt(tt));
+    return L.join('\n');
+  }
+
+  function fecharTurno() {
+    var t = S.turno;
+    var arquivo = JSON.parse(JSON.stringify({ v: 1, turno: t, servicos: S.servicos, fechadoEm: new Date().toISOString() }));
+    store.arquivar(t.id, arquivo).then(function () {
+      S.turno = null; ui.view = 'main'; ui.apagar = null;
+      renderAll();
+      setStatus('Entregas fechadas. Relatório salvo.', 'ok');
+      queueSave();
+    }, function () {
+      setStatus('Não consegui salvar o relatório. As entregas continuam abertas; tente de novo.', 'warn');
+    });
+  }
+
+
+  /* ----------------------------------------------------------
+     7. SALVAR E CARREGAR
+     ---------------------------------------------------------- */
+
+  var saveTimer = null, saving = false, again = false;
+
+  // Pede pra salvar. Espera meio segundo parado pra juntar várias mudanças numa só.
+  function queueSave() {
+    if (!ui.pronto || ui.semSalvar) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 500);
+  }
+
+  function flush() {
+    if (saving) { again = true; return; }   // já tem um salvamento em andamento: salva de novo depois
+    saving = true;
+    var copia = JSON.parse(JSON.stringify(S));   // cópia "limpa" (sem undefined)
+    store.save(copia).then(function () {
+      saving = false;
+      if (again) { again = false; flush(); }
+    }, function () {
+      saving = false;
+      setStatus('Não consegui salvar agora. Seus dados podem não estar guardados.', 'warn');
+    });
+  }
+
+  // Junta o que estava salvo com o estado inicial (protege contra dados incompletos).
+  function aplicarSalvo(saved) {
+    if (!saved || saved.v !== 1) return;
+    if (Array.isArray(saved.servicos) && saved.servicos.length) S.servicos = saved.servicos;
+    S.servicoId = saved.servicoId || S.servicoId;
+    S.texto = typeof saved.texto === 'string' ? saved.texto : '';
+    S.demo = !!saved.demo;
+    S.orders = Array.isArray(saved.orders) ? saved.orders : [];
+    S.ignored = saved.ignored || 0;
+    S.turno = saved.turno || null;
+    if (!S.servicos.some(function (s) { return s.id === S.servicoId; })) S.servicoId = S.servicos[0].id;
+  }
+
+
+  /* ----------------------------------------------------------
+     8. COPIAR
+     ---------------------------------------------------------- */
+
+  function payText(o) {
+    var p = o.pay;
+    if (p.kind === 'pago') return '✅ Pago';
+    if (p.kind === 'dinheiro' || p.kind === 'cartao' || p.kind === 'pix') {
+      var icon = p.kind === 'cartao' ? '💳' : '💰';
+      var s = icon + ' ' + money(p.amount) + ' receber ' + payLabel(p.kind);
+      var t = trocoText(o);
+      return t ? s + '\n   ' + t : s;
+    }
+    return '⚠️ ' + (p.amount != null ? money(p.amount) + ' confirmar forma de pagamento' : 'pagamento não informado');
+  }
+
+  function orderText(o, i) {
+    var L = [(i + 1) + '. ' + nameText(o), '📍 ' + o.addr, payText(o)];
+    if (o.refriText.trim()) L.push('🥤 ' + o.refriText.trim());
+    if (o.obsText.trim()) L.push('📝 ' + o.obsText.trim());
+    return L.join('\n');
+  }
+
+  function flash(btn, msg) {
+    if (!btn) return;
+    if (btn._t) clearTimeout(btn._t); else btn._o = btn.textContent;
+    btn.textContent = msg;
+    btn._t = setTimeout(function () { btn.textContent = btn._o; btn._t = null; }, 1300);
+  }
+
+  function copyText(text, btn, fallbackEl) {
+    var done = function () { flash(btn, 'Copiado'); };
+    var fail = function () {
+      var ok = false;
+      try {
+        var t = document.createElement('textarea');
+        t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.appendChild(t); t.select(); ok = document.execCommand('copy'); document.body.removeChild(t);
+      } catch (e) { ok = false; }
+      if (ok) done();
+      else {
+        if (fallbackEl) { try { fallbackEl.focus(); fallbackEl.select(); } catch (e2) {} }
+        flash(btn, 'Selecionado');
+      }
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail);
+      else fail();
+    } catch (e) { fail(); }
+  }
+
+
+  /* ----------------------------------------------------------
+     9. EVENTOS
+     Usamos um "ouvinte" por área (e não um por botão): ele descobre
+     qual botão foi tocado olhando os atributos data-... do elemento.
+     ---------------------------------------------------------- */
+
+  // Redesenha tudo (usado quando muda de tela ou ao carregar).
+  function renderAll() {
+    $('main').hidden = ui.view !== 'main';
+    $('turno').hidden = ui.view !== 'main';
+    $('rel').hidden = ui.view !== 'rel';
+    renderTurno();
+    renderServicos();
+    renderList();
+    updateSummary();
+    $('demo').hidden = !S.demo;
+    if (ui.view === 'rel') renderRel();
+  }
+
+  // --- Cards ---
+  list.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var card = b.closest('.card');
+    var i = +card.getAttribute('data-i');
+    var o = S.orders[i];
+    var act = b.getAttribute('data-act');
+
+    if (act === 'copy-name') copyText(nameText(o), b, card.querySelector('[data-f="name"]'));
+    else if (act === 'copy-addr') copyText(o.addr, b, card.querySelector('[data-f="addr"]'));
+    else if (act === 'semend') { o.semEnd = !o.semEnd; patchCard(i); queueSave(); }
+    else if (act === 'feito') { o.feito = !o.feito; patchCard(i); queueSave(); }
+    else if (act === 'pay') {
+      o.pay = { kind: b.getAttribute('data-v'), amount: o.pay.amount, trocoPara: null };
+      patchCard(i); queueSave();
+    }
+    else if (act === 'repay') { o.pay = { kind: 'unknown', amount: o.pay.amount, trocoPara: null }; patchCard(i); queueSave(); }
+    else if (act === 'remover') { S.orders.splice(i, 1); renderList(); updateSummary(); queueSave(); }
+  });
+
+  list.addEventListener('input', function (e) {
+    var t = e.target, f = t.getAttribute('data-f');
+    if (!f) return;
+    var card = t.closest('.card');
+    var i = +card.getAttribute('data-i');
+    var o = S.orders[i];
+    o[f] = t.value;
+    if (f === 'name') { o.warn = ''; patchCard(i); }
+    else if (f === 'addr') patchCard(i);
+    else if (f === 'refriText') t.classList.toggle('has', !!t.value.trim());
+    else if (f === 'valorTxt') { o.valor = parseMoney(t.value); o.valorManual = true; }
+    queueSave();
+  });
+
+  // --- Serviços e valor padrão ---
+  $('servicos').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-sv]');
+    if (!b) return;
+    var id = b.getAttribute('data-sv');
+    if (id === '__novo') { ui.novo = !ui.novo; renderServicos(); if (ui.novo) $('novoNome').focus(); return; }
+    S.servicoId = id;
+    renderServicos();
+    aplicarValorPadrao();
+    queueSave();
+  });
+
+  $('valorPadrao').addEventListener('input', function (e) {
+    svc(S.servicoId).valor = parseMoney(e.target.value);
+    aplicarValorPadrao();
+    queueSave();
+  });
+
+  $('novoOk').addEventListener('click', function () {
+    var nome = $('novoNome').value.trim();
+    if (!nome) return;
+    var s = { id: 's' + uid(), nome: nome, valor: svc(S.servicoId).valor };   // começa com o valor do serviço atual
+    S.servicos.push(s);
+    S.servicoId = s.id;
+    ui.novo = false; $('novoNome').value = '';
+    renderServicos();
+    aplicarValorPadrao();
+    queueSave();
+  });
+
+  // --- Caixa de texto e botões da rota ---
+  $('run').addEventListener('click', function () { seguroDescartar(lerDaCaixa); });
+  $('clear').addEventListener('click', function () { seguroDescartar(limparRota); });
+  ta.addEventListener('input', function () { S.texto = ta.value; $('demo').hidden = true; queueSave(); });
+  ta.addEventListener('paste', function () { setTimeout(function () { seguroDescartar(lerDaCaixa); }, 0); });
+
+  $('copyall').addEventListener('click', function (e) {
+    var head = '📋 PEDIDOS (' + S.orders.length + ')\n\n';
+    copyText(head + S.orders.map(orderText).join('\n\n'), e.currentTarget, null);
+  });
+
+  $('terminar').addEventListener('click', terminarRota);
+
+  // Respostas dos avisos (Terminar rota / descartar).
+  $('fim').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fim]');
+    if (!b) return;
+    var a = b.getAttribute('data-fim');
+    if (a === 'todos') finalizar('todos');
+    else if (a === 'marcados') finalizar('marcados');
+    else if (a === 'cancelar') clearFim();
+    else if (a === 'descartar') { var f = ui.descartar; ui.descartar = null; clearFim(); if (f) f(); }
+    else if (a === 'voltar') { ui.descartar = null; ta.value = S.texto; clearFim(); }
+  });
+
+  // --- Barra das entregas do dia ---
+  $('turno').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-t]');
+    if (!b) return;
+    var a = b.getAttribute('data-t');
+    if (a === 'abrir') {
+      S.turno = { id: uid(), abertoEm: new Date().toISOString(), adiantamento: null, rotas: [] };
+      renderTurno(); updateSummary(); queueSave();
+    }
+    else if (a === 'fechar') { ui.view = 'rel'; renderAll(); window.scrollTo(0, 0); }
+    else if (a === 'apagar') { ui.apagar = b.getAttribute('data-r'); renderTurno(); }
+    else if (a === 'apagar-nao') { ui.apagar = null; renderTurno(); }
+    else if (a === 'apagar-sim') {
+      var id = b.getAttribute('data-r');
+      S.turno.rotas = S.turno.rotas.filter(function (r) { return r.id !== id; });
+      ui.apagar = null; renderTurno(); queueSave();
+    }
+  });
+
+  // --- Relatório ---
+  $('rel').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-r]');
+    if (!b || b.tagName === 'INPUT') return;
+    var a = b.getAttribute('data-r');
+    if (a === 'voltar') { ui.view = 'main'; renderAll(); window.scrollTo(0, 0); }
+    else if (a === 'copiar') copyText(relatorioTexto(), b, null);
+    else if (a === 'confirmar') fecharTurno();
+    else if (a === 'bulk') {
+      var sid = b.getAttribute('data-s');
+      var v = parseMoney($('bulk-' + sid).value);
+      svc(sid).valor = v;   // lembra como novo valor padrão do serviço
+      S.turno.rotas.forEach(function (r) {
+        r.entregas.forEach(function (d) { if ((d.servicoId || r.servicoId) === sid) d.valor = v; });
+      });
+      renderRel(); queueSave();
+    }
+  });
+
+  $('rel').addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.id === 'adiant') { S.turno.adiantamento = parseMoney(t.value) || null; patchRel(); queueSave(); return; }
+    if (t.getAttribute('data-r') !== 'valor') return;
+    var did = t.getAttribute('data-d');
+    S.turno.rotas.forEach(function (r) {
+      r.entregas.forEach(function (d) { if (d.id === did) d.valor = parseMoney(t.value); });
+    });
+    patchRel(); queueSave();
+  });
+
+
+  /* ----------------------------------------------------------
+     10. INÍCIO
+     1) Mostra o exemplo na hora (a página nunca fica em branco).
+     2) Em seguida carrega o que estava salvo e redesenha.
+     ---------------------------------------------------------- */
+
+  ta.value = SAMPLE;
+  ta.disabled = true;                        // trava a caixa até terminar de carregar
+  S.orders = lerPedidos(SAMPLE);
+  renderAll();
+
+  store.init().then(function () {
+    return store.load();
+  }).then(function (saved) {
+    aplicarSalvo(saved);
+    ui.pronto = true;
+    ta.disabled = false;
+    ta.value = S.texto;
+    renderAll();
+    if (store.aviso) setStatus(store.aviso, 'info');
+  }, function () {
+    // Deu erro ao carregar: NÃO salvamos nada nesta visita, pra não apagar o que já existia.
+    ui.pronto = true; ui.semSalvar = true;
+    ta.disabled = false;
+    renderAll();
+    setStatus('Não consegui abrir seus dados salvos. Por segurança, nada será salvo agora. Recarregue a página.', 'warn');
+  });
+
+})();
+
+</script>
+
+</body></html>

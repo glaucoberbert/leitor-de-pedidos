@@ -158,6 +158,7 @@
 
   function pending(o) {
     return o.pay.kind === 'unknown' || o.pay.kind === 'none'
+        || (o.pay.kind !== 'pago' && o.pay.amount == null)   // vai receber, mas falta o valor
         || (!hasNum(o) && !o.semEnd) || !o.name.trim() || !!o.warn;
   }
 
@@ -188,30 +189,67 @@
 
   function payLabel(k) { return { dinheiro: 'dinheiro', cartao: 'cartão', pix: 'Pix' }[k]; }
 
-  function payHTML(o) {
-    var p = o.pay, h = '';
-    if (p.kind === 'pago') {
-      h = '<span class="tag ok">Pago' + (p.via ? ' · ' + esc(p.via) : '') + '</span>';
-      if (p.amount != null) h += '<button class="link" type="button" data-act="repay">Mudar</button>';
-      return h;
+  // Bloco de pagamento: botões da forma + campos de valor e troco.
+  // "i" é a posição do card (usada nos ids que o patchPayx atualiza).
+  function payHTML(o, i) {
+    var p = o.pay, k = p.kind;
+    var formas = [['dinheiro', 'Dinheiro'], ['cartao', 'Cartão'], ['pix', 'Pix'], ['pago', 'Pago']];
+    var h = '<div class="seg">' + formas.map(function (f) {
+      return '<button class="b2" type="button" data-act="pay" data-v="' + f[0] + '" aria-pressed="' + (k === f[0] ? 'true' : 'false') + '">' + f[1] + '</button>';
+    }).join('') + '</div>';
+
+    // Veio sem forma de pagamento clara: pede pra você escolher um dos botões.
+    if (k === 'unknown' || k === 'none') {
+      h += '<div class="notice warn">' + (k === 'none' ? 'Pagamento não informado.' : 'Confirme a forma de pagamento.') + '</div>';
     }
-    if (p.kind === 'dinheiro' || p.kind === 'cartao' || p.kind === 'pix') {
-      h = '<div class="pay-main"><strong>' + esc(money(p.amount)) + '</strong>receber ' + payLabel(p.kind) + '</div>';
-      var t = trocoText(o);
-      if (t) h += '<div class="sub">' + esc(t) + '</div>';
-      h += '<button class="link" type="button" data-act="repay">Mudar</button>';
-      return h;
+
+    if (k === 'pago') {
+      h += '<span class="tag ok">Pago' + (p.via ? ' · ' + esc(p.via) : '') + '</span>';
+    } else {
+      // Valor sempre aparece; "troco pra" só quando é dinheiro.
+      h += '<div class="pay-in"><div class="f"><label class="lab">Valor (R$)</label>' +
+           '<input class="in sm" data-f="payTxt" inputmode="decimal" aria-label="Valor a receber" value="' + esc(o.payTxt) + '" autocomplete="off"></div>';
+      if (k === 'dinheiro') {
+        h += '<div class="f"><label class="lab">Troco pra (R$)</label>' +
+             '<input class="in sm" data-f="trocoTxt" inputmode="decimal" aria-label="Troco para quanto" placeholder="opcional" value="' + esc(o.trocoTxt) + '" autocomplete="off"></div>';
+      }
+      h += '</div>';
     }
-    var msg = p.kind === 'none' ? 'Pagamento não informado.'
-      : (p.amount != null ? money(p.amount) + ': confirmar a forma de pagamento.' : 'Falta o valor ou a forma de pagamento.');
-    h = '<div class="notice warn">' + esc(msg) + '</div><div class="row">';
-    if (p.amount != null) {
-      h += '<button class="b2" type="button" data-act="pay" data-v="dinheiro">Dinheiro</button>' +
-           '<button class="b2" type="button" data-act="pay" data-v="cartao">Cartão</button>' +
-           '<button class="b2" type="button" data-act="pay" data-v="pix">Pix</button>';
-    }
-    h += '<button class="b2" type="button" data-act="pay" data-v="pago">Já pago</button></div>';
-    return h;
+    return h + '<div class="payx" id="payx-' + i + '">' + payxHTML(o) + '</div>';
+  }
+
+  // Parte do pagamento que muda enquanto você digita: a linha do troco.
+  // (Separada do payHTML para não refazer os campos e tirar o cursor de onde você está.)
+  function payxHTML(o) {
+    var t = trocoText(o);
+    return t ? '<div class="sub">' + esc(t) + '</div>' : '';
+  }
+
+  // Tem valor e forma de receber? Só então faz sentido copiar pro Spoke ("pago" não copia).
+  function payPode(o) {
+    var p = o.pay;
+    return (p.kind === 'dinheiro' || p.kind === 'cartao' || p.kind === 'pix') && p.amount != null;
+  }
+
+  function payNome(k) { return { dinheiro: 'Dinheiro', cartao: 'Cartão', pix: 'Pix' }[k]; }
+
+  // O texto que vai pro Spoke: "R$48 - Dinheiro"
+  function payCopy(o) { return money(o.pay.amount) + ' - ' + payNome(o.pay.kind); }
+
+  // Mostra ou esconde o botão "Copiar" do pagamento.
+  function setPayCopy(i) {
+    var b = $('payc-' + i);
+    if (b) b.hidden = !payPode(S.orders[i]);
+  }
+
+  // Atualiza só o que depende do valor/troco digitado: linha do troco, botão copiar, etiqueta e resumo.
+  function patchPayx(i) {
+    var o = S.orders[i];
+    var x = $('payx-' + i); if (x) x.innerHTML = payxHTML(o);
+    setPayCopy(i);
+    var chip = chipInfo(o), c = $('chip-' + i);
+    if (c) { c.className = 'chip ' + chip.cls; c.textContent = chip.txt; }
+    updateSummary();
   }
 
   function addrNote(o) {
@@ -260,7 +298,9 @@
           '<div class="notes" id="anote-' + i + '">' + addrNote(o) + '</div></div>' +
 
         // Pagamento
-        '<div class="f"><span class="lab">Pagamento</span><div class="pay" id="pay-' + i + '">' + payHTML(o) + '</div></div>' +
+        '<div class="f"><div class="f-head"><span class="lab">Pagamento</span>' +
+          '<button class="cp" type="button" id="payc-' + i + '" data-act="copy-pay"' + (payPode(o) ? '' : ' hidden') + '>Copiar</button></div>' +
+          '<div class="pay" id="pay-' + i + '">' + payHTML(o, i) + '</div></div>' +
 
         // Refri
         '<div class="f"><span class="lab">Refri</span>' +
@@ -287,7 +327,8 @@
     if (b) { b.setAttribute('aria-pressed', o.feito ? 'true' : 'false'); b.textContent = feitoLabel(o); }
     var a = $('anote-' + i); if (a) a.innerHTML = addrNote(o);
     var n = $('nnote-' + i); if (n) n.innerHTML = nameNote(o);
-    var p = $('pay-' + i); if (p) p.innerHTML = payHTML(o);
+    var p = $('pay-' + i); if (p) p.innerHTML = payHTML(o, i);
+    setPayCopy(i);
     updateSummary();
   }
 
@@ -389,6 +430,8 @@
       o.obsText = o.obs.join(' · ');
       o.feito = false;
       o.valor = v; o.valorTxt = fmtNum(v); o.valorManual = false;
+      o.payTxt = fmtNum(o.pay.amount);          // texto dos campos de pagamento
+      o.trocoTxt = fmtNum(o.pay.trocoPara);
       return o;
     });
   }
@@ -695,6 +738,11 @@
     S.texto = typeof saved.texto === 'string' ? saved.texto : '';
     S.demo = !!saved.demo;
     S.orders = Array.isArray(saved.orders) ? saved.orders : [];
+    // Pedidos salvos por versões antigas ainda não tinham os campos de texto do pagamento.
+    S.orders.forEach(function (o) {
+      if (o.payTxt === undefined) o.payTxt = fmtNum(o.pay.amount);
+      if (o.trocoTxt === undefined) o.trocoTxt = fmtNum(o.pay.trocoPara);
+    });
     S.ignored = saved.ignored || 0;
     S.turno = saved.turno || null;
     if (!S.servicos.some(function (s) { return s.id === S.servicoId; })) S.servicoId = S.servicos[0].id;
@@ -709,6 +757,7 @@
     var p = o.pay;
     if (p.kind === 'pago') return '✅ Pago' + (p.via ? ' (' + p.via + ')' : '');
     if (p.kind === 'dinheiro' || p.kind === 'cartao' || p.kind === 'pix') {
+      if (p.amount == null) return '⚠️ falta o valor (' + payLabel(p.kind) + ')';
       var icon = p.kind === 'cartao' ? '💳' : '💰';
       var s = icon + ' ' + money(p.amount) + ' receber ' + payLabel(p.kind);
       var t = trocoText(o);
@@ -785,11 +834,12 @@
     else if (act === 'copy-addr') copyText(o.addr, b, card.querySelector('[data-f="addr"]'));
     else if (act === 'semend') { o.semEnd = !o.semEnd; patchCard(i); queueSave(); }
     else if (act === 'feito') { o.feito = !o.feito; patchCard(i); queueSave(); }
-    else if (act === 'pay') {
-      o.pay = { kind: b.getAttribute('data-v'), amount: o.pay.amount, trocoPara: null };
+    else if (act === 'copy-pay') copyText(payCopy(o), b, null);          // "R$48 - Dinheiro"
+    else if (act === 'pay') {                                             // você escolheu a forma de pagamento
+      var v = b.getAttribute('data-v');
+      o.pay = { kind: v, amount: o.pay.amount, trocoPara: v === 'dinheiro' ? o.pay.trocoPara : null, via: '' };
       patchCard(i); queueSave();
     }
-    else if (act === 'repay') { o.pay = { kind: 'unknown', amount: o.pay.amount, trocoPara: null }; patchCard(i); queueSave(); }
     else if (act === 'remover') { S.orders.splice(i, 1); renderList(); updateSummary(); queueSave(); }
   });
 
@@ -804,6 +854,16 @@
     else if (f === 'addr') patchCard(i);
     else if (f === 'refriText') t.classList.toggle('has', !!t.value.trim());
     else if (f === 'valorTxt') { o.valor = parseMoney(t.value); o.valorManual = true; }
+    else if (f === 'payTxt') {                                            // valor a receber
+      var n = parseMoney(t.value);
+      o.pay.amount = n > 0 ? n : null;
+      patchPayx(i);
+    }
+    else if (f === 'trocoTxt') {                                          // "troco pra quanto"
+      var n2 = parseMoney(t.value);
+      o.pay.trocoPara = n2 > 0 ? n2 : null;
+      patchPayx(i);
+    }
     queueSave();
   });
 
