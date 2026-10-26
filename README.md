@@ -10,7 +10,7 @@ Para cada pedido, mostra:
 
 - **Nome e bairro** na mesma linha (`Letícia - Inconfidência`)
 - **Endereço** limpo (`Rua X, 123`), pronto para colar no app de rotas
-- **Pagamento**: `Pago`, `Pago · Pix` ou `R$ valor receber dinheiro/cartão`, com troco calculado
+- **Pagamento**: forma (Dinheiro, Cartão, Pix ou Pago), valor e troco editáveis, com tabela de troco e botão que copia `R$48 - Dinheiro` pro Spoke (não copia quando está pago)
 - **Refri**: se tem e qual (a comida não aparece)
 - **Observações**: referências do endereço, pedidos especiais (`mandar talher`)
 
