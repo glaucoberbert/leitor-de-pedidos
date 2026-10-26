@@ -330,5 +330,15 @@ h2 { margin: 0; }
 /* Telinha de inserir pedido manualmente */
 .manual { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 
+/* Aviso ao apertar "voltar" no celular */
+.sair {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55);
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.sair-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; max-width: 420px; width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.sair-box b { font: 700 24px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+
 /* [hidden] precisa ganhar de qualquer display definido acima. */
 [hidden] { display: none !important; }

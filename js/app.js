@@ -88,6 +88,7 @@
     novo: false,       // caixinha de "novo serviço" aberta?
     apagar: null,      // id da rota esperando confirmação de apagar
     descartar: null,   // ação esperando você confirmar que pode descartar a rota
+    erroSalvar: false, // o último salvamento falhou?
     delSvc: null       // apagar serviço: { id, step } (step 1 = 1ª pergunta, step 2 = "tem certeza?")
   };
 
@@ -725,9 +726,11 @@
     var copia = JSON.parse(JSON.stringify(S));   // cópia "limpa" (sem undefined)
     store.save(copia).then(function () {
       saving = false;
+      ui.erroSalvar = false;
       if (again) { again = false; flush(); }
     }, function () {
       saving = false;
+      ui.erroSalvar = true;
       setStatus('Não consegui salvar agora. Seus dados podem não estar guardados.', 'warn');
     });
   }
@@ -952,6 +955,45 @@
     else if (a === 'descartar') { var f = ui.descartar; ui.descartar = null; clearFim(); if (f) f(); }
     else if (a === 'voltar') { ui.descartar = null; ta.value = S.texto; clearFim(); }
   });
+
+  // --- Botão "voltar" do celular: pergunta antes de sair ---
+  // O navegador não deixa a página bloquear o "voltar". O truque é colocar uma entrada
+  // "de enfeite" no histórico: quando você aperta voltar, só essa entrada é desfeita, a página
+  // continua aqui e nós mostramos a pergunta. Se você ficar, a entrada é recolocada.
+  var saindo = false;   // true = você já confirmou que quer sair
+
+  function armarVoltar() {
+    try { history.pushState({ leitor: 1 }, ''); } catch (e) { /* sem histórico: sem aviso, mas o app funciona */ }
+  }
+
+  if (window.addEventListener) {
+    window.addEventListener('popstate', function () {
+      if (saindo) return;
+      // Salva já o que estiver esperando (o salvamento normal espera meio segundo).
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; flush(); }
+      $('sairMsg').textContent = (ui.erroSalvar || ui.semSalvar)
+        ? 'Atenção: não consegui salvar. Se sair, esta rota pode ser perdida.'
+        : 'Suas entregas e a rota atual ficam salvas e voltam quando você abrir de novo.';
+      $('sair').hidden = false;
+      $('sairNao').focus();
+    });
+  }
+
+  $('sairNao').addEventListener('click', function () {
+    $('sair').hidden = true;
+    armarVoltar();                       // recoloca a entrada de enfeite
+  });
+
+  $('sairSim').addEventListener('click', function () {
+    saindo = true;
+    $('sair').hidden = true;
+    try { history.back(); } catch (e) {}
+    // Se o app era a primeira página da aba, não há para onde voltar e nada acontece.
+    // Nesse caso (a página continua aqui), rearma o aviso para o próximo "voltar".
+    setTimeout(function () { saindo = false; armarVoltar(); }, 500);
+  });
+
+  armarVoltar();
 
   // --- Inserir pedido manualmente (quando ele não veio no padrão) ---
   var mForma = '';   // forma de pagamento escolhida na telinha ('' = ainda nenhuma)

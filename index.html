@@ -137,6 +137,18 @@
 
   </main>
 
+  <!-- Aviso ao apertar "voltar" no celular (o app.js mostra e esconde) -->
+  <div class="sair" id="sair" role="alertdialog" aria-modal="true" aria-labelledby="sairT" hidden>
+    <div class="sair-box">
+      <b id="sairT">Deseja realmente sair do aplicativo?</b>
+      <p class="hint" id="sairMsg"></p>
+      <div class="row">
+        <button class="b1" id="sairNao" type="button">Ficar</button>
+        <button class="b2" id="sairSim" type="button">Sair</button>
+      </div>
+    </div>
+  </div>
+
   <!--
     A ORDEM IMPORTA:
       parser.js  cria parseOrders()
