@@ -327,5 +327,8 @@ h2 { margin: 0; }
 .payx { width: 100%; display: flex; flex-direction: column; gap: 8px; }
 .payx:empty { display: none; }
 
+/* Telinha de inserir pedido manualmente */
+.manual { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
 /* [hidden] precisa ganhar de qualquer display definido acima. */
 [hidden] { display: none !important; }

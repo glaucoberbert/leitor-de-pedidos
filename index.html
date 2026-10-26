@@ -61,6 +61,62 @@
           <button class="b1" id="run" type="button">Ler pedidos</button>
           <button class="b2" id="clear" type="button">Limpar</button>
         </div>
+
+        <!-- Pedido que não veio no padrão (ex.: print do iFood): preencher na mão -->
+        <button class="b2" id="manualBtn" type="button">Inserir dados manualmente</button>
+
+        <!-- Telinha de preenchimento manual (o app.js abre e fecha) -->
+        <div class="manual" id="manual" hidden>
+          <span class="lab">Novo pedido manual</span>
+
+          <div class="f">
+            <label class="lab" for="mNome">Nome</label>
+            <input class="in nm" id="mNome" autocomplete="off">
+          </div>
+          <div class="f">
+            <label class="lab" for="mBairro">Bairro</label>
+            <input class="in" id="mBairro" autocomplete="off">
+          </div>
+          <div class="f">
+            <label class="lab" for="mEnd">Endereço (rua e número)</label>
+            <input class="in ad" id="mEnd" placeholder="Rua X, 123" autocomplete="off">
+          </div>
+
+          <div class="f">
+            <span class="lab">Pagamento</span>
+            <div class="seg" id="mForma">
+              <button class="b2" type="button" data-mf="dinheiro" aria-pressed="false">Dinheiro</button>
+              <button class="b2" type="button" data-mf="cartao" aria-pressed="false">Cartão</button>
+              <button class="b2" type="button" data-mf="pix" aria-pressed="false">Pix</button>
+              <button class="b2" type="button" data-mf="pago" aria-pressed="false">Pago</button>
+            </div>
+          </div>
+          <div class="pay-in" id="mValores">
+            <div class="f">
+              <label class="lab" for="mValor">Valor (R$)</label>
+              <input class="in sm" id="mValor" inputmode="decimal" autocomplete="off">
+            </div>
+            <div class="f" id="mTrocoBox" hidden>
+              <label class="lab" for="mTroco">Troco pra (R$)</label>
+              <input class="in sm" id="mTroco" inputmode="decimal" placeholder="opcional" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="f">
+            <label class="lab" for="mRefri">Refri</label>
+            <input class="in" id="mRefri" placeholder="sem refri" autocomplete="off">
+          </div>
+          <div class="f">
+            <label class="lab" for="mObs">Observação</label>
+            <input class="in" id="mObs" placeholder="sem observação" autocomplete="off">
+          </div>
+
+          <div class="notice warn" id="mErro" hidden></div>
+          <div class="row">
+            <button class="b1" id="mAdd" type="button">Adicionar pedido</button>
+            <button class="b2" id="mCancel" type="button">Cancelar</button>
+          </div>
+        </div>
       </section>
 
       <section class="sum" id="sum" aria-label="Resumo da rota"></section>

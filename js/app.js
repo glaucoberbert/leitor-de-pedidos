@@ -953,6 +953,86 @@
     else if (a === 'voltar') { ui.descartar = null; ta.value = S.texto; clearFim(); }
   });
 
+  // --- Inserir pedido manualmente (quando ele não veio no padrão) ---
+  var mForma = '';   // forma de pagamento escolhida na telinha ('' = ainda nenhuma)
+
+  // Mostra os botões da forma de pagamento e só exibe o que faz sentido:
+  // "Pago" não tem valor; "Troco pra" só existe em dinheiro.
+  function mostrarForma() {
+    var bs = $('mForma').querySelectorAll('[data-mf]');
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-mf') === mForma ? 'true' : 'false');
+    }
+    $('mValores').hidden = mForma === 'pago';
+    $('mTrocoBox').hidden = mForma !== 'dinheiro';
+  }
+
+  // Abre (true) ou fecha (false) a telinha. Ao abrir, começa com tudo em branco.
+  function abrirManual(abrir) {
+    $('manual').hidden = !abrir;
+    $('manualBtn').hidden = abrir;
+    if (!abrir) return;
+    ['mNome', 'mBairro', 'mEnd', 'mValor', 'mTroco', 'mRefri', 'mObs'].forEach(function (id) { $(id).value = ''; });
+    $('mErro').hidden = true;
+    mForma = '';
+    mostrarForma();
+    $('mNome').focus();
+  }
+
+  // Monta o pedido com o que você digitou e coloca na lista, igual aos que vêm do WhatsApp.
+  function adicionarManual() {
+    var nome = $('mNome').value.trim(), end = $('mEnd').value.trim();
+    if (!nome && !end) {
+      $('mErro').hidden = false;
+      $('mErro').textContent = 'Preencha pelo menos o nome ou o endereço.';
+      return;
+    }
+    $('mErro').hidden = true;
+
+    var valor = mForma !== 'pago' ? parseMoney($('mValor').value) : 0;
+    var troco = mForma === 'dinheiro' ? parseMoney($('mTroco').value) : 0;
+    var refri = $('mRefri').value.trim(), obs = $('mObs').value.trim();
+    var vEntrega = svc(S.servicoId).valor;
+
+    var o = {
+      id: uid(),
+      name: nome,
+      bairro: $('mBairro').value.trim(),
+      addr: end,
+      semEnd: false,
+      // Sem forma escolhida, o card pede a confirmação (kind "unknown"), como nos outros.
+      pay: { kind: mForma || 'unknown', amount: valor > 0 ? valor : null, trocoPara: troco > 0 ? troco : null, via: '' },
+      refri: [], obs: [], warn: '',
+      date: '', time: 'manual',                 // aparece "manual" no topo do card
+      refriText: refri, obsText: obs,
+      feito: false,
+      valor: vEntrega, valorTxt: fmtNum(vEntrega), valorManual: false,
+      payTxt: valor > 0 ? fmtNum(valor) : '',
+      trocoTxt: troco > 0 ? fmtNum(troco) : ''
+    };
+
+    // Se ainda estavam na tela os pedidos de exemplo, eles saem para não se misturar com o real.
+    if (S.demo) { S.orders = []; S.demo = false; S.texto = ''; ta.value = ''; $('demo').hidden = true; }
+
+    S.orders.push(o);
+    abrirManual(false);
+    renderList(); updateSummary(); queueSave();
+
+    var cards = list.querySelectorAll('.card');
+    var ultimo = cards[cards.length - 1];
+    if (ultimo && ultimo.scrollIntoView) ultimo.scrollIntoView({ block: 'center' });
+  }
+
+  $('manualBtn').addEventListener('click', function () { abrirManual(true); });
+  $('mCancel').addEventListener('click', function () { abrirManual(false); });
+  $('mAdd').addEventListener('click', adicionarManual);
+  $('mForma').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mf]');
+    if (!b) return;
+    mForma = b.getAttribute('data-mf');
+    mostrarForma();
+  });
+
   // --- Barra das entregas do dia ---
   $('turno').addEventListener('click', function (e) {
     var b = e.target.closest('[data-t]');
