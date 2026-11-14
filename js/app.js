@@ -128,6 +128,23 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function hhmm(iso) { var d = new Date(iso); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function ddmm(iso) { var d = new Date(iso); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); }
+
+  // Todas as datas e horas vêm do relógio do celular (new Date()).
+  // Se o turno foi aberto em outro dia, devolve "26/10 às " pra mostrar isso; se foi hoje, devolve vazio.
+  function diaSeNaoHoje(iso) { return ddmm(iso) === ddmm(new Date()) ? '' : ddmm(iso) + ' às '; }
+
+  // Data que vai no relatório: o dia em que as entregas foram feitas (a hora em que cada rota foi terminada),
+  // e não o dia em que o turno foi aberto — o turno pode ter ficado aberto desde outro dia.
+  // Um só dia: "07/11". Mais de um: "26/10 a 07/11". Sem nenhuma rota terminada: a data de abertura.
+  function dataDoTurno(t) {
+    var dias = [];
+    t.rotas.forEach(function (r) {
+      var d = r.fimEm ? ddmm(r.fimEm) : '';
+      if (d && dias.indexOf(d) < 0) dias.push(d);
+    });
+    if (!dias.length) return ddmm(t.abertoEm);
+    return dias.length === 1 ? dias[0] : dias[0] + ' a ' + dias[dias.length - 1];
+  }
   function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
 
   // Acha um serviço pelo id. Devolve null se ele não existir mais (foi apagado).
@@ -272,12 +289,21 @@
   // Texto do botão "Entregue" conforme o estado.
   function feitoLabel(o) { return o.feito ? 'Entregue' : 'Marcar entregue'; }
 
+  // Desenho da setinha (aponta pra baixo; o CSS gira quando o card está fechado).
+  var CHEV = '<svg class="chev" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
   function cardHTML(o, i) {
     var chip = chipInfo(o);
     var when = (o.date + ' ' + o.time).trim() || 'sem data';
-    return '<article class="card' + (o.feito ? ' done' : '') + '" data-i="' + i + '">' +
-      '<header class="meta"><span class="idx">#' + (i + 1) + '</span><span>' + esc(when) + '</span>' +
-      '<span class="chip ' + chip.cls + '" id="chip-' + i + '">' + chip.txt + '</span></header>' +
+    return '<article class="card' + (o.feito ? ' done' : '') + (o.fechado ? ' fechado' : '') + '" data-i="' + i + '">' +
+      // Topo: setinha (abre/fecha o card) + nome (só aparece com o card fechado) + etiqueta + chave "Entregue".
+      '<header class="meta">' +
+        '<button class="hd" type="button" data-act="toggle" aria-expanded="' + (o.fechado ? 'false' : 'true') + '" aria-label="Abrir ou fechar este pedido">' +
+          CHEV + '<span class="idx">#' + (i + 1) + '</span><span class="when">' + esc(when) + '</span>' +
+          '<b class="hname" id="hname-' + i + '">' + esc(o.name.trim() || 'Sem nome') + '</b></button>' +
+        '<span class="chip ' + chip.cls + '" id="chip-' + i + '">' + chip.txt + '</span>' +
+        '<button class="sw" type="button" role="switch" data-act="feito-sw" aria-checked="' + (o.feito ? 'true' : 'false') + '" aria-label="Entregue"><span class="sw-knob"></span></button>' +
+      '</header>' +
       '<div class="body">' +
 
         // Entregue + valor desta entrega
@@ -326,8 +352,14 @@
     var c = $('chip-' + i);
     if (c) { c.className = 'chip ' + chip.cls; c.textContent = chip.txt; }
     card.classList.toggle('done', !!o.feito);
+    card.classList.toggle('fechado', !!o.fechado);
     var b = card.querySelector('[data-act="feito"]');
     if (b) { b.setAttribute('aria-pressed', o.feito ? 'true' : 'false'); b.textContent = feitoLabel(o); }
+    var sw = card.querySelector('[data-act="feito-sw"]');                  // a chave do topo
+    if (sw) sw.setAttribute('aria-checked', o.feito ? 'true' : 'false');
+    var tg = card.querySelector('[data-act="toggle"]');
+    if (tg) tg.setAttribute('aria-expanded', o.fechado ? 'false' : 'true');
+    var hn = $('hname-' + i); if (hn) hn.textContent = o.name.trim() || 'Sem nome';
     var a = $('anote-' + i); if (a) a.innerHTML = addrNote(o);
     var n = $('nnote-' + i); if (n) n.innerHTML = nameNote(o);
     var p = $('pay-' + i); if (p) p.innerHTML = payHTML(o, i);
@@ -422,12 +454,24 @@
     });
   }
 
+  // Põe os pedidos em ordem alfabética pelo nome (sem diferenciar maiúscula nem acento).
+  // Quem está sem nome vai pro fim; se dois nomes são iguais, fica a ordem em que vieram.
+  // Só ordena aqui (ao ler e ao inserir). Se você editar um nome depois, o card NÃO pula de lugar.
+  function ordenarPorNome(arr) {
+    return arr.map(function (o, i) { return { o: o, i: i }; }).sort(function (a, b) {
+      var na = (a.o.name || '').trim(), nb = (b.o.name || '').trim();
+      if (!na !== !nb) return na ? -1 : 1;
+      var c = na.localeCompare(nb, 'pt-BR', { sensitivity: 'base' });
+      return c || a.i - b.i;
+    }).map(function (x) { return x.o; });
+  }
+
   // Transforma o texto colado em cards.
   function lerPedidos(texto) {
     var r = parseOrders(texto);           // <- função do parser.js
     S.ignored = r.ignored;
     var v = svc(S.servicoId).valor;
-    return r.orders.map(function (o) {
+    return ordenarPorNome(r.orders.map(function (o) {
       o.id = uid();
       o.refriText = o.refri.join(' + ');
       o.obsText = o.obs.join(' · ');
@@ -436,7 +480,7 @@
       o.payTxt = fmtNum(o.pay.amount);          // texto dos campos de pagamento
       o.trocoTxt = fmtNum(o.pay.trocoPara);
       return o;
-    });
+    }));
   }
 
 
@@ -484,7 +528,7 @@
     }).join('');
 
     el.innerHTML = '<div class="turno-box open">' +
-      '<span class="lab">Entregas abertas desde ' + hhmm(t.abertoEm) + '</span>' +
+      '<span class="lab">Entregas abertas desde ' + diaSeNaoHoje(t.abertoEm) + hhmm(t.abertoEm) + '</span>' +
       '<div class="turno-nums">' +
         '<div><span class="lab">Corridas</span><b>' + tt.n + '</b></div>' +
         '<div><span class="lab">Ganho</span><b>' + esc(money(tt.g) || 'R$0') + '</b></div>' +
@@ -553,8 +597,12 @@
 
   // Se a rota atual tem entregas marcadas e ainda não foi terminada,
   // pergunta antes de apagar. "proxima" é o que fazer se você confirmar.
-  function seguroDescartar(proxima) {
-    var n = S.demo ? 0 : S.orders.filter(function (o) { return o.feito; }).length;
+  // "mantemManuais" = true quando a ação vai guardar os pedidos manuais (é o caso do Ler pedidos):
+  // aí eles não entram na conta do aviso, porque não serão descartados.
+  function seguroDescartar(proxima, mantemManuais) {
+    var n = S.demo ? 0 : S.orders.filter(function (o) {
+      return o.feito && !(mantemManuais && ehManual(o));
+    }).length;
     if (!n) { proxima(); return; }
     ui.descartar = proxima;
     showFim('<div class="notice warn">Esta rota tem ' + plural(n, 'entrega marcada', 'entregas marcadas') + ' e ainda não foi terminada. Se continuar, elas não contam.</div>' +
@@ -562,10 +610,17 @@
       '<button class="b2" type="button" data-fim="voltar">Voltar</button></div>');
   }
 
+  // Pedido digitado na mão (botão "Inserir dados manualmente"). Não vem do texto colado.
+  // (Os cards antigos já salvos só têm time 'manual', por isso conferimos os dois.)
+  function ehManual(o) { return !!o && (o.manual === true || o.time === 'manual'); }
+
   function lerDaCaixa() {
     S.texto = ta.value;
+    // Os pedidos manuais não estão no texto colado, então o "Ler pedidos" não pode apagá-los:
+    // guardamos antes de refazer a lista e colocamos de volta no fim.
+    var manuais = S.demo ? [] : S.orders.filter(ehManual);
     S.demo = false;
-    S.orders = lerPedidos(S.texto);
+    S.orders = ordenarPorNome(lerPedidos(S.texto).concat(manuais));
     clearFim();
     $('demo').hidden = true;
     renderList(); updateSummary();
@@ -628,7 +683,7 @@
     if (!t) { ui.view = 'main'; renderAll(); return; }
     var grupos = agrupar(t), tt = totais(t);
 
-    var h = '<header><h1>Relatório do dia</h1><p class="lead">' + ddmm(t.abertoEm) + ' · aberto às ' + hhmm(t.abertoEm) + '</p></header>';
+    var h = '<header><h1>Relatório do dia</h1><p class="lead">' + dataDoTurno(t) + ' · aberto ' + (diaSeNaoHoje(t.abertoEm) ? 'em ' + diaSeNaoHoje(t.abertoEm) : 'às ') + hhmm(t.abertoEm) + '</p></header>';
 
     if (S.orders.length && !S.demo) {
       h += '<div class="notice warn">Tem uma rota sem terminar (' + plural(S.orders.length, 'pedido', 'pedidos') + '). Ela não entra no relatório. Volte e toque em Terminar rota.</div>';
@@ -680,7 +735,7 @@
   }
 
   function relatorioTexto() {
-    var t = S.turno, tt = totais(t), L = ['📋 RELATÓRIO DE ENTREGAS — ' + ddmm(t.abertoEm), ''];
+    var t = S.turno, tt = totais(t), L = ['📋 RELATÓRIO DE ENTREGAS — ' + dataDoTurno(t), ''];
     agrupar(t).forEach(function (g) {
       L.push(g.nome + ' — ' + plural(g.entregas.length, 'entrega', 'entregas') + ' (' + money(somaValor(g.entregas)) + ')');
       g.entregas.forEach(function (d) { L.push('• ' + d.name + ' — ' + money(d.valor || 0)); });
@@ -838,7 +893,8 @@
     if (act === 'copy-name') copyText(nameText(o), b, card.querySelector('[data-f="name"]'));
     else if (act === 'copy-addr') copyText(o.addr, b, card.querySelector('[data-f="addr"]'));
     else if (act === 'semend') { o.semEnd = !o.semEnd; patchCard(i); queueSave(); }
-    else if (act === 'feito') { o.feito = !o.feito; patchCard(i); queueSave(); }
+    else if (act === 'feito' || act === 'feito-sw') { o.feito = !o.feito; patchCard(i); queueSave(); }
+    else if (act === 'toggle') { o.fechado = !o.fechado; patchCard(i); queueSave(); }
     else if (act === 'copy-refri') copyText(o.refriText.trim(), b, card.querySelector('[data-f="refriText"]'));
     else if (act === 'copy-obs') copyText(o.obsText.trim(), b, card.querySelector('[data-f="obsText"]'));
     else if (act === 'copy-pay') copyText(payCopy(o), b, null);          // "R$48 - Dinheiro"
@@ -932,10 +988,10 @@
   });
 
   // --- Caixa de texto e botões da rota ---
-  $('run').addEventListener('click', function () { seguroDescartar(lerDaCaixa); });
+  $('run').addEventListener('click', function () { seguroDescartar(lerDaCaixa, true); });
   $('clear').addEventListener('click', function () { seguroDescartar(limparRota); });
   ta.addEventListener('input', function () { S.texto = ta.value; $('demo').hidden = true; queueSave(); });
-  ta.addEventListener('paste', function () { setTimeout(function () { seguroDescartar(lerDaCaixa); }, 0); });
+  ta.addEventListener('paste', function () { setTimeout(function () { seguroDescartar(lerDaCaixa, true); }, 0); });
 
   $('copyall').addEventListener('click', function (e) {
     var head = '📋 PEDIDOS (' + S.orders.length + ')\n\n';
@@ -1045,6 +1101,7 @@
       // Sem forma escolhida, o card pede a confirmação (kind "unknown"), como nos outros.
       pay: { kind: mForma || 'unknown', amount: valor > 0 ? valor : null, trocoPara: troco > 0 ? troco : null, via: '' },
       refri: [], obs: [], warn: '',
+      manual: true,                             // marca: o "Ler pedidos" não apaga este card
       date: '', time: 'manual',                 // aparece "manual" no topo do card
       refriText: refri, obsText: obs,
       feito: false,
@@ -1057,11 +1114,12 @@
     if (S.demo) { S.orders = []; S.demo = false; S.texto = ''; ta.value = ''; $('demo').hidden = true; }
 
     S.orders.push(o);
+    S.orders = ordenarPorNome(S.orders);        // o novo entra na ordem alfabética
     abrirManual(false);
     renderList(); updateSummary(); queueSave();
 
     var cards = list.querySelectorAll('.card');
-    var ultimo = cards[cards.length - 1];
+    var ultimo = cards[S.orders.indexOf(o)];   // o card novo (agora pode estar no meio da lista)
     if (ultimo && ultimo.scrollIntoView) ultimo.scrollIntoView({ block: 'center' });
   }
 
