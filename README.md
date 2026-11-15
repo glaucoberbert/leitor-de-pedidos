@@ -22,6 +22,8 @@ Se o pedido não veio no padrão (por exemplo, só um print do iFood), o botão 
 
 Cada serviço (restaurante, pastelaria...) tem seu valor por entrega. O valor vale para todos os cards da rota, e dá para mudar só o de uma entrega mais longa. Serviços podem ser criados e apagados (com duas confirmações).
 
+Cada serviço também pode ter um **mínimo garantido por dia** (ex.: R$70). Se as entregas do dia somarem menos que isso, o relatório completa até o mínimo e mostra o complemento. Deixando em branco, o serviço fica sem mínimo.
+
 ### Entregas do dia
 
 1. **Abrir entregas** no começo do turno.

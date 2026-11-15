@@ -65,10 +65,11 @@
 
   var S = {
     v: 1,
-    // Serviços para os quais você entrega, cada um com o valor padrão por entrega.
+    // Serviços para os quais você entrega, cada um com o valor padrão por entrega
+    // e o "minimo" garantido por dia (0 = esse serviço não tem mínimo).
     servicos: [
-      { id: 'paradise', nome: 'Paradise Food', valor: 6 },
-      { id: 'donamesa', nome: 'Dona Mesa', valor: 6 }
+      { id: 'paradise', nome: 'Paradise Food', valor: 6, minimo: 70 },
+      { id: 'donamesa', nome: 'Dona Mesa', valor: 6, minimo: 0 }
     ],
     servicoId: 'paradise',   // serviço da rota que está na tela
     texto: SAMPLE,           // o que está na caixa de texto
@@ -422,7 +423,7 @@
         '<div class="row"><button class="b2" type="button" data-sd="sim1">Sim, apagar</button>' +
         '<button class="b2" type="button" data-sd="nao">Não</button></div>';
     }
-    return '<div class="notice warn">Tem certeza mesmo? O valor por entrega de «' + esc(s.nome) + '» some. ' +
+    return '<div class="notice warn">Tem certeza mesmo? O valor por entrega e o mínimo de «' + esc(s.nome) + '» somem. ' +
       'As entregas já salvas hoje continuam no relatório.</div>' +
       '<div class="row"><button class="b2" type="button" data-sd="sim2">Apagar de vez</button>' +
       '<button class="b2" type="button" data-sd="nao">Cancelar</button></div>';
@@ -440,6 +441,7 @@
     if (ui.delSvc && ui.delSvc.id !== S.servicoId) ui.delSvc = null;
     $('svcdel').innerHTML = svcDelHTML();
     $('valorPadrao').value = fmtNum(svc(S.servicoId).valor);
+    $('minimo').value = svc(S.servicoId).minimo > 0 ? fmtNum(svc(S.servicoId).minimo) : '';   // vazio = sem mínimo
   }
 
   // Quando o valor padrão muda, os cards que você NÃO alterou na mão acompanham.
@@ -454,11 +456,18 @@
     });
   }
 
-  // Põe os pedidos em ordem alfabética pelo nome (sem diferenciar maiúscula nem acento).
-  // Quem está sem nome vai pro fim; se dois nomes são iguais, fica a ordem em que vieram.
-  // Só ordena aqui (ao ler e ao inserir). Se você editar um nome depois, o card NÃO pula de lugar.
-  function ordenarPorNome(arr) {
+  // Põe os pedidos em ordem alfabética pelo nome (sem diferenciar maiúscula nem acento), em DOIS GRUPOS:
+  //   1º grupo: os que ainda faltam entregar (A-Z)
+  //   2º grupo: os já entregues (A-Z), lá embaixo
+  // Quem está sem nome vai pro fim do seu grupo; se dois nomes são iguais, fica a ordem em que vieram.
+  // Ordena ao ler, ao inserir manual e ao marcar/desmarcar entregue. Se você só editar um nome, o card NÃO pula de lugar.
+  // "semGrupos" = true ignora o entregue/não entregue e ordena só pelo nome (usado no relatório).
+  function ordenarPorNome(arr, semGrupos) {
     return arr.map(function (o, i) { return { o: o, i: i }; }).sort(function (a, b) {
+      if (!semGrupos) {
+        var ga = a.o.feito ? 1 : 0, gb = b.o.feito ? 1 : 0;
+        if (ga !== gb) return ga - gb;
+      }
       var na = (a.o.name || '').trim(), nb = (b.o.name || '').trim();
       if (!na !== !nb) return na ? -1 : 1;
       var c = na.localeCompare(nb, 'pt-BR', { sensitivity: 'base' });
@@ -501,7 +510,11 @@
         }
       });
     });
-    return { n: n, g: r2(g), din: r2(din), car: r2(car), pix: r2(pix) };
+    // g = só o que as entregas rendem (é o que a barra do turno mostra durante o dia).
+    // Se um serviço não bateu o mínimo garantido, o que falta é o "comp" (soma dos complementos);
+    // total = g + comp é o valor final que vale no relatório.
+    var comp = agrupar(t).reduce(function (a, gr) { return a + complementoDoGrupo(gr); }, 0);
+    return { n: n, g: r2(g), comp: r2(comp), total: r2(g + comp), din: r2(din), car: r2(car), pix: r2(pix) };
   }
 
   function renderTurno() {
@@ -568,7 +581,8 @@
 
   // Guarda a rota dentro do turno e limpa a tela para a próxima.
   function finalizar(modo) {
-    var lista = S.orders.filter(function (o) { return modo === 'todos' || o.feito; });
+    // No relatório a lista sai toda em ordem alfabética (sem separar entregues e pendentes).
+    var lista = ordenarPorNome(S.orders.filter(function (o) { return modo === 'todos' || o.feito; }), true);
     if (!lista.length || !S.turno) return;
     var sv = svc(S.servicoId);
     S.turno.rotas.push({
@@ -660,11 +674,32 @@
     return s ? s.valor : (g.entregas[0] ? g.entregas[0].valor : 0);
   }
 
+  // Mínimo garantido do serviço do grupo (0 = não tem). Se o serviço foi apagado, não tem.
+  function minimoDoGrupo(g) {
+    var sv = svcFind(g.id);
+    return sv && sv.minimo > 0 ? sv.minimo : 0;
+  }
+
+  // Quanto falta pra chegar no mínimo: 0 se já bateu ou se o serviço não tem mínimo.
+  // (O mínimo vale pra soma de TODAS as rotas do dia daquele serviço.)
+  function complementoDoGrupo(g) {
+    var m = minimoDoGrupo(g);
+    return m ? Math.max(0, r2(m - somaValor(g.entregas))) : 0;
+  }
+
+  // Frase que aparece embaixo do campo do mínimo no relatório.
+  function minimoNota(g) {
+    var m = minimoDoGrupo(g);
+    if (!m) return '';
+    var c = complementoDoGrupo(g);
+    return c > 0 ? 'Não bateu o mínimo de ' + money(m) + ': completa +' + money(c) + '.' : 'Bateu o mínimo de ' + money(m) + '.';
+  }
+
   function somaValor(arr) { return r2(arr.reduce(function (a, d) { return a + (d.valor || 0); }, 0)); }
 
   function saldoInfo(t, tt) {
     var a = t.adiantamento || 0;
-    var s = r2(tt.g - a);
+    var s = r2(tt.total - a);
     if (s > 0) return { cls: 'warn', txt: 'A receber: ' + money(s) };
     if (s < 0) return { cls: 'ok', txt: 'Recebeu a mais: ' + money(-s) };
     return { cls: 'ok', txt: 'Tudo certo: saldo zerado' };
@@ -696,6 +731,11 @@
         '<div class="f"><label class="lab" for="bulk-' + g.id + '">Valor por entrega neste serviço (R$)</label>' +
           '<div class="row"><input class="in sm" id="bulk-' + g.id + '" inputmode="decimal" value="' + esc(fmtNum(valorDoGrupo(g))) + '" autocomplete="off">' +
           '<button class="b2" type="button" data-r="bulk" data-s="' + g.id + '">Aplicar a todas</button></div></div>' +
+        (svcFind(g.id)
+          ? '<div class="f"><label class="lab" for="min-' + g.id + '">Mínimo garantido neste serviço (R$)</label>' +
+            '<input class="in sm" id="min-' + g.id + '" data-r="minimo" data-s="' + g.id + '" inputmode="decimal" placeholder="sem mínimo" value="' + esc(minimoDoGrupo(g) ? fmtNum(minimoDoGrupo(g)) : '') + '" autocomplete="off">' +
+            '<span class="hint" id="mind-' + g.id + '"></span></div>'
+          : '') +
         '<ul class="rel-l">' + g.entregas.map(function (d) {
           return '<li><span class="n">' + esc(d.name) + '</span>' +
             '<input class="in sm" data-r="valor" data-d="' + d.id + '" inputmode="decimal" aria-label="Valor de ' + esc(d.name) + '" value="' + esc(fmtNum(d.valor)) + '" autocomplete="off"></li>';
@@ -705,6 +745,7 @@
     h += '<section class="rel-s">' +
       '<div class="rel-h"><b>Total</b><span id="tot-n"></span></div>' +
       '<div class="rel-g"><span class="lab">Ganho</span><b id="tot-g"></b></div>' +
+      '<p class="hint" id="tot-m"></p>' +
       '<div class="f"><label class="lab" for="adiant">Adiantamento recebido (R$)</label>' +
         '<input class="in sm" id="adiant" inputmode="decimal" value="' + esc(t.adiantamento ? fmtNum(t.adiantamento) : '') + '" placeholder="0" autocomplete="off"></div>' +
       '<div class="notice" id="saldo"></div>' +
@@ -726,9 +767,13 @@
     agrupar(t).forEach(function (g) {
       var s = $('sub-' + g.id);
       if (s) s.textContent = plural(g.entregas.length, 'entrega', 'entregas') + ' · ' + money(somaValor(g.entregas));
+      var mn = $('mind-' + g.id); if (mn) mn.textContent = minimoNota(g);
     });
+    var tm = $('tot-m');
+    tm.textContent = tt.comp ? 'Inclui ' + money(tt.comp) + ' de complemento do mínimo garantido.' : '';
+    tm.hidden = !tt.comp;
     $('tot-n').textContent = plural(tt.n, 'entrega', 'entregas');
-    $('tot-g').textContent = money(tt.g) || 'R$0';
+    $('tot-g').textContent = money(tt.total) || 'R$0';
     var sd = saldoInfo(t, tt), sEl = $('saldo');
     sEl.className = 'notice ' + sd.cls; sEl.textContent = sd.txt;
     $('tot-c').textContent = clientesTxt(tt);
@@ -739,9 +784,11 @@
     agrupar(t).forEach(function (g) {
       L.push(g.nome + ' — ' + plural(g.entregas.length, 'entrega', 'entregas') + ' (' + money(somaValor(g.entregas)) + ')');
       g.entregas.forEach(function (d) { L.push('• ' + d.name + ' — ' + money(d.valor || 0)); });
+      var cg = complementoDoGrupo(g);
+      if (cg > 0) L.push('Complemento do mínimo garantido (' + money(minimoDoGrupo(g)) + '): +' + money(cg));
       L.push('');
     });
-    L.push('Total: ' + plural(tt.n, 'entrega', 'entregas') + ' · ' + money(tt.g));
+    L.push('Total: ' + plural(tt.n, 'entrega', 'entregas') + ' · ' + money(tt.total));
     if (t.adiantamento) L.push('Adiantamento: ' + money(t.adiantamento));
     L.push(saldoInfo(t, tt).txt);
     L.push(clientesTxt(tt));
@@ -794,6 +841,8 @@
   function aplicarSalvo(saved) {
     if (!saved || saved.v !== 1) return;
     if (Array.isArray(saved.servicos) && saved.servicos.length) S.servicos = saved.servicos;
+    // Serviços salvos antes do valor mínimo existir: o Paradise Food passa a ter R$70 (você pode mudar ou apagar), os outros ficam sem mínimo.
+    S.servicos.forEach(function (sv) { if (sv.minimo === undefined) sv.minimo = sv.id === 'paradise' ? 70 : 0; });
     S.servicoId = saved.servicoId || S.servicoId;
     S.texto = typeof saved.texto === 'string' ? saved.texto : '';
     S.demo = !!saved.demo;
@@ -893,7 +942,12 @@
     if (act === 'copy-name') copyText(nameText(o), b, card.querySelector('[data-f="name"]'));
     else if (act === 'copy-addr') copyText(o.addr, b, card.querySelector('[data-f="addr"]'));
     else if (act === 'semend') { o.semEnd = !o.semEnd; patchCard(i); queueSave(); }
-    else if (act === 'feito' || act === 'feito-sw') { o.feito = !o.feito; patchCard(i); queueSave(); }
+    else if (act === 'feito' || act === 'feito-sw') {
+      // Entregue desce pro grupo de baixo; desmarcar volta pro grupo de cima (sempre em ordem alfabética).
+      o.feito = !o.feito;
+      S.orders = ordenarPorNome(S.orders);
+      renderList(); updateSummary(); queueSave();
+    }
     else if (act === 'toggle') { o.fechado = !o.fechado; patchCard(i); queueSave(); }
     else if (act === 'copy-refri') copyText(o.refriText.trim(), b, card.querySelector('[data-f="refriText"]'));
     else if (act === 'copy-obs') copyText(o.obsText.trim(), b, card.querySelector('[data-f="obsText"]'));
@@ -946,6 +1000,12 @@
     queueSave();
   });
 
+  // Mínimo garantido do serviço que está na tela. Vazio ou 0 = sem mínimo.
+  $('minimo').addEventListener('input', function (e) {
+    svc(S.servicoId).minimo = parseMoney(e.target.value);
+    queueSave();
+  });
+
   $('valorPadrao').addEventListener('input', function (e) {
     svc(S.servicoId).valor = parseMoney(e.target.value);
     aplicarValorPadrao();
@@ -955,7 +1015,7 @@
   $('novoOk').addEventListener('click', function () {
     var nome = $('novoNome').value.trim();
     if (!nome) return;
-    var s = { id: 's' + uid(), nome: nome, valor: svc(S.servicoId).valor };   // começa com o valor do serviço atual
+    var s = { id: 's' + uid(), nome: nome, valor: svc(S.servicoId).valor, minimo: 0 };   // começa com o valor do serviço atual e sem mínimo
     S.servicos.push(s);
     S.servicoId = s.id;
     ui.novo = false; $('novoNome').value = '';
@@ -1175,6 +1235,11 @@
   $('rel').addEventListener('input', function (e) {
     var t = e.target;
     if (t.id === 'adiant') { S.turno.adiantamento = parseMoney(t.value) || null; patchRel(); queueSave(); return; }
+    if (t.getAttribute('data-r') === 'minimo') {                       // mínimo garantido do serviço, editado no relatório
+      var sm = svcFind(t.getAttribute('data-s'));
+      if (sm) { sm.minimo = parseMoney(t.value); patchRel(); queueSave(); }
+      return;
+    }
     if (t.getAttribute('data-r') !== 'valor') return;
     var did = t.getAttribute('data-d');
     S.turno.rotas.forEach(function (r) {
