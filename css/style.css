@@ -337,9 +337,8 @@ textarea#src {
 .sw:focus-visible, .hd:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .chev, .sw, .sw-knob { transition: none; } }
 
-/* Card entregue: borda verde e um pouco mais apagado */
-.card.done { border-color: var(--ok); }
-.card.done .body { opacity: .78; }
+/* Card entregue: borda verde e mais apagado (fica no grupo de baixo da lista; ainda dá pra ler) */
+.card.done { border-color: var(--ok); opacity: .62; }
 .ent { min-height: 40px; }
 
 /* Relatório */
