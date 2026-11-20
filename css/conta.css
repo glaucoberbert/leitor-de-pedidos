@@ -1,0 +1,37 @@
+/* ============================================================
+   conta.css  —  Aparência da área de conta (login)
+   ------------------------------------------------------------
+   Só ADICIONA classes novas (todas começam com "conta-").
+   Usa as cores e fontes do style.css, então acompanha o modo escuro.
+   ============================================================ */
+
+/* Faixa de cima: texto à esquerda, link à direita. */
+.conta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conta-bar .hint { min-width: 0; overflow-wrap: anywhere; }
+
+/* Caixa do formulário (entrar / criar conta / código). Borda na cor de destaque. */
+.conta-box {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.conta-t { font: 700 24px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+
+/* "Lembrar de mim": caixinha grande o bastante para tocar. */
+.conta-lembrar { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer; }
+.conta-lembrar input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+
+/* Campo do código de 6 dígitos: números grandes e bem espaçados. */
+.in.conta-cod { font: 600 28px/1.1 var(--f-mono); letter-spacing: .35em; text-align: center; max-width: none; }
