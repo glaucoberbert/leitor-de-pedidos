@@ -1097,16 +1097,20 @@
 
   $('sairNao').addEventListener('click', function () {
     $('sair').hidden = true;
+    saindo = false;                      // o aviso volta a funcionar
+    $('sairSim').hidden = false;         // (o botão Sair pode ter sido escondido pelo código abaixo)
     armarVoltar();                       // recoloca a entrada de enfeite
   });
 
   $('sairSim').addEventListener('click', function () {
-    saindo = true;
-    $('sair').hidden = true;
+    saindo = true;                       // desliga o aviso: o próximo "voltar" sai de verdade
     try { history.back(); } catch (e) {}
-    // Se o app era a primeira página da aba, não há para onde voltar e nada acontece.
-    // Nesse caso (a página continua aqui), rearma o aviso para o próximo "voltar".
-    setTimeout(function () { saindo = false; armarVoltar(); }, 500);
+    // Uma página web não consegue fechar o aplicativo sozinha. Se meio segundo depois a página
+    // continua aqui, é porque não havia para onde voltar: então explicamos o que fazer.
+    setTimeout(function () {
+      $('sairMsg').textContent = 'Agora aperte o botão voltar do celular mais uma vez para sair.';
+      $('sairSim').hidden = true;        // só sobra o botão Ficar
+    }, 500);
   });
 
   armarVoltar();

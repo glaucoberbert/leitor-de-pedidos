@@ -1,13 +1,14 @@
 /* ============================================================
-   auth.js  —  Conta do motoboy (login OPCIONAL)
+   auth.js  —  Conta do motoboy (login OBRIGATÓRIO)
    ------------------------------------------------------------
-   O app continua funcionando sem conta: tudo é guardado no celular
-   (localStorage), como sempre. Entrar numa conta é uma melhoria
-   que, na próxima etapa, vai sincronizar os dados com o servidor.
+   Ao abrir o app, se não houver login válido guardado, aparece só a
+   "porta": uma tela cheia de entrar / criar conta. O app fica escondido
+   até o login dar certo. Os dados continuam sendo guardados no celular
+   (localStorage); a sincronização com o servidor vem em outra etapa.
 
    Este arquivo tem duas partes:
      1. "conta": fala com o servidor e guarda o "crachá" (token) do login
-     2. A tela: a faixa "Sem conta / Conectado" e os formulários
+     2. A tela: a porta de login e a faixa "Conectado como..."
    ============================================================ */
 
 
@@ -48,14 +49,13 @@ var conta = (function () {
   // Guarda o login. "Lembrar de mim" marcado -> localStorage (fica mesmo fechando o app).
   // Desmarcado -> sessionStorage (some quando a aba/sessão fecha).
   function guardar(s, lembrar) {
-    sessao = s;
     apagar();      // limpa as duas gavetas antes (não ficar com login velho em uma delas)
     sessao = s;    // apagar() zerou a memória, então colocamos de novo
     try { (lembrar ? localStorage : sessionStorage).setItem(CHAVE, JSON.stringify(s)); } catch (e) {}
   }
 
   // Ao abrir o app: recupera o login guardado, se ainda não venceu.
-  // NÃO fala com o servidor (assim o app abre rápido e não acorda o servidor à toa).
+  // NÃO fala com o servidor (assim o app abre rápido, mesmo sem internet).
   function carregar() {
     var s = ler('localStorage') || ler('sessionStorage');
     if (s && s.token && s.expira_ms > Date.now()) sessao = s;
@@ -123,17 +123,25 @@ var conta = (function () {
 
 
 /* ------------------------------------------------------------
-   PARTE 2 — A tela da conta
+   PARTE 2 — A tela: porta de login e faixa "Conectado como"
    ------------------------------------------------------------ */
 (function () {
 
-  var raiz = document.getElementById('areaConta');
-  if (!raiz) return;   // a página não tem a área da conta: não faz nada
+  var main = document.querySelector('main');         // o app inteiro (fica escondido até entrar)
+  var barra = document.getElementById('areaConta');  // faixa pequena dentro do app: nome + "Sair da conta"
+  if (!main) return;                                  // página sem app: não faz nada
+
+  // A "porta": tela cheia de login. É criada aqui, por isso o index.html não precisa mudar.
+  var porta = document.createElement('section');
+  porta.className = 'porta';
+  porta.hidden = true;
+  porta.setAttribute('aria-label', 'Entrar no Todoke');
+  document.body.insertBefore(porta, document.body.firstChild);
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // Em qual tela estamos: 'fechado' (só a faixa) | 'entrar' | 'criar' | 'codigo'
-  var tela = 'fechado';
+  // Em qual tela da porta estamos: 'entrar' | 'criar' | 'codigo'
+  var tela = 'entrar';
 
   // Dados guardados SÓ na memória durante o cadastro/confirmação.
   // Servem para entrar sozinho depois de confirmar o código. Nada disso vai pro disco.
@@ -152,25 +160,18 @@ var conta = (function () {
 
   /* ---------- Desenho ---------- */
 
-  // A faixa de cima: muda conforme esteja logado ou não.
+  // Faixa pequena que aparece DENTRO do app, depois de entrar.
   function barraHTML() {
-    if (conta.logado()) {
-      var u = conta.usuario();
-      return '<div class="conta-bar"><span class="hint">Conectado como <b>' + esc(u.nome || u.email) + '</b>. ' +
-             'A sincronização dos dados chega na próxima etapa.</span>' +
-             '<button class="link" type="button" data-c="sair">Sair</button></div>';
-    }
-    return '<div class="conta-bar"><span class="hint">Sem conta: seus dados ficam só neste celular.</span>' +
-           (tela === 'fechado' ? '<button class="link" type="button" data-c="abrir">Entrar ou criar conta</button>' : '') +
-           '</div>';
+    var u = conta.usuario() || {};
+    return '<div class="conta-bar"><span class="hint">Conectado como <b>' + esc(u.nome || u.email) + '</b></span>' +
+           '<button class="link" type="button" data-c="sair">Sair da conta</button></div>';
   }
 
-  // Pedaço comum dos formulários: aviso + "aguarde" + botões.
+  // Pedaço comum dos formulários: aviso + "aguarde" + botão principal.
   function rodapeHTML(textoBotao) {
     return '<div class="notice" id="conta-msg" hidden></div>' +
            '<p class="hint" id="conta-espera" hidden>O servidor está acordando. Pode levar até 1 minuto, aguarde.</p>' +
-           '<div class="row"><button class="b1" type="submit">' + textoBotao + '</button>' +
-           '<button class="b2" type="button" data-c="fechar">Fechar</button></div>';
+           '<div class="row"><button class="b1" type="submit">' + textoBotao + '</button></div>';
   }
 
   function campoHTML(id, rotulo, tipo, extra) {
@@ -181,13 +182,6 @@ var conta = (function () {
   var LEMBRAR = '<label class="conta-lembrar"><input type="checkbox" id="conta-lembrar"> Lembrar de mim neste celular</label>';
 
   function formHTML() {
-    if (tela === 'entrar') {
-      return '<form class="conta-box" data-form="entrar" novalidate><b class="conta-t">Entrar</b>' +
-        campoHTML('conta-email', 'E-mail', 'email', 'name="email" autocomplete="email" autocapitalize="none" spellcheck="false"') +
-        campoHTML('conta-senha', 'Senha', 'password', 'name="password" autocomplete="current-password"') +
-        LEMBRAR + rodapeHTML('Entrar') +
-        '<button class="link" type="button" data-c="ir-criar">Não tenho conta: criar</button></form>';
-    }
     if (tela === 'criar') {
       return '<form class="conta-box" data-form="criar" novalidate><b class="conta-t">Criar conta</b>' +
         campoHTML('conta-nome', 'Nome', 'text', 'name="name" autocomplete="name" maxlength="100"') +
@@ -204,19 +198,39 @@ var conta = (function () {
         '<input class="in conta-cod" id="conta-codigo" type="text" inputmode="numeric" maxlength="6" ' +
         'autocomplete="one-time-code" placeholder="000000"></div>' +
         rodapeHTML('Confirmar') +
-        '<button class="b2" type="button" id="conta-reenviar" data-c="reenviar">Reenviar código</button></form>';
+        '<button class="b2" type="button" id="conta-reenviar" data-c="reenviar">Reenviar código</button>' +
+        '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
     }
-    return '';
+    // tela === 'entrar' (a primeira)
+    return '<form class="conta-box" data-form="entrar" novalidate><b class="conta-t">Entrar</b>' +
+      campoHTML('conta-email', 'E-mail', 'email', 'name="email" autocomplete="email" autocapitalize="none" spellcheck="false"') +
+      campoHTML('conta-senha', 'Senha', 'password', 'name="password" autocomplete="current-password"') +
+      LEMBRAR + rodapeHTML('Entrar') +
+      '<button class="link" type="button" data-c="ir-criar">Não tenho conta: criar</button></form>';
   }
 
-  // Redesenha a área toda. Só é chamado quando a TELA muda (não a cada letra digitada).
-  function desenhar() {
+  // Redesenha tudo. Só é chamado quando a TELA muda (não a cada letra digitada).
+  // "focar" = true coloca o cursor no primeiro campo (no 1º desenho não, pra não abrir o teclado do nada).
+  function desenhar(focar) {
     clearInterval(timerReenvio);
-    raiz.innerHTML = barraHTML() + formHTML();
+    var logado = conta.logado();
+
+    main.hidden = !logado;                                   // o app só aparece depois de entrar
+    porta.hidden = logado;                                   // a porta some depois de entrar
+    if (barra) barra.innerHTML = logado ? barraHTML() : '';
+
+    if (logado) { porta.innerHTML = ''; return; }
+
+    porta.innerHTML = '<div class="porta-box">' +
+      '<div class="porta-marca"><h1>Todoke</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
+      formHTML() + '</div>';
+
     if (avisoInicial) { msg(avisoInicial.texto, avisoInicial.tipo); avisoInicial = null; }
     if (tela === 'codigo') contagemReenvio();
-    var primeiro = raiz.querySelector('form input:not([type="checkbox"])');
-    if (primeiro) primeiro.focus();   // já deixa o cursor no primeiro campo
+    if (focar) {
+      var primeiro = porta.querySelector('form input:not([type="checkbox"])');
+      if (primeiro) primeiro.focus();
+    }
   }
 
   /* ---------- Mensagens e "aguarde" ---------- */
@@ -232,7 +246,7 @@ var conta = (function () {
 
   // Trava o botão principal enquanto espera o servidor; depois de 4 s avisa que ele pode estar acordando.
   function ocupar(sim) {
-    var b = raiz.querySelector('button[type="submit"]');
+    var b = porta.querySelector('button[type="submit"]');
     clearTimeout(timerEspera);
     if (b) {
       if (sim) { if (!b._rot) b._rot = b.textContent; b.textContent = 'Aguarde…'; }
@@ -276,14 +290,14 @@ var conta = (function () {
     msg(''); ocupar(true);
     conta.entrar(email, senha, lembrar).then(function (r) {
       ocupar(false);
-      if (r.status === 200) { tela = 'fechado'; desenhar(); return; }
+      if (r.status === 200) { window.scrollTo(0, 0); desenhar(false); return; }   // entrou: mostra o app
       if (r.status === 403) {
         // Senha certa, mas o e-mail ainda não foi confirmado: pede um código novo e abre a tela do código.
         pend = { email: email, senha: senha, lembrar: lembrar };
         conta.chamar('POST', '/auth/reenviar-codigo', { email: email });
         liberaEm = Date.now() + 60000;
         avisoInicial = { texto: 'Seu e-mail ainda não foi confirmado. Enviamos um código novo.', tipo: 'ok' };
-        tela = 'codigo'; desenhar();
+        tela = 'codigo'; desenhar(true);
         return;
       }
       msg(textoDoErro(r, 'E-mail ou senha incorretos.'));
@@ -305,7 +319,7 @@ var conta = (function () {
         avisoInicial = (r.dados && r.dados.codigo_enviado === false)
           ? { texto: 'Conta criada, mas o e-mail com o código não saiu. Toque em Reenviar código.', tipo: 'warn' }
           : { texto: 'Conta criada! Enviamos o código para o seu e-mail.', tipo: 'ok' };
-        tela = 'codigo'; desenhar();
+        tela = 'codigo'; desenhar(true);
         return;
       }
       msg(textoDoErro(r, 'Não consegui criar a conta.'));
@@ -315,7 +329,7 @@ var conta = (function () {
   function enviarCodigo() {
     var cod = $('conta-codigo').value.replace(/\D/g, '');   // só os números
     if (cod.length !== 6) { msg('Digite os 6 números do código.'); return; }
-    if (!pend) { tela = 'entrar'; desenhar(); return; }
+    if (!pend) { tela = 'entrar'; desenhar(true); return; }
     msg(''); ocupar(true);
     conta.chamar('POST', '/auth/confirmar-email', { email: pend.email, codigo: cod }).then(function (r) {
       if (r.status !== 200) { ocupar(false); msg(textoDoErro(r, 'Código inválido.')); return; }
@@ -323,16 +337,17 @@ var conta = (function () {
       return conta.entrar(pend.email, pend.senha, pend.lembrar).then(function (r2) {
         ocupar(false);
         pend = null;   // esquece a senha da memória
-        if (r2.status === 200) { tela = 'fechado'; }
-        else { avisoInicial = { texto: 'E-mail confirmado! Agora é só entrar.', tipo: 'ok' }; tela = 'entrar'; }
-        desenhar();
+        if (r2.status === 200) { window.scrollTo(0, 0); desenhar(false); return; }
+        avisoInicial = { texto: 'E-mail confirmado! Agora é só entrar.', tipo: 'ok' };
+        tela = 'entrar'; desenhar(true);
       });
     }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
   }
 
-  /* ---------- Eventos (um ouvinte só para a área toda) ---------- */
+  /* ---------- Eventos ---------- */
 
-  raiz.addEventListener('submit', function (e) {
+  // Enviar os formulários da porta (botão ou tecla Enter).
+  porta.addEventListener('submit', function (e) {
     e.preventDefault();   // não deixa o navegador recarregar a página
     var f = e.target.getAttribute('data-form');
     if (f === 'entrar') enviarEntrar();
@@ -340,14 +355,18 @@ var conta = (function () {
     else if (f === 'codigo') enviarCodigo();
   });
 
-  raiz.addEventListener('click', function (e) {
+  // Cliques nos botões da porta e da faixa "Sair da conta" (um ouvinte para os dois lugares).
+  function clique(e) {
     var b = e.target.closest('[data-c]');
     if (!b) return;
     var a = b.getAttribute('data-c');
-    if (a === 'abrir' || a === 'ir-entrar') { tela = 'entrar'; desenhar(); }
-    else if (a === 'ir-criar') { tela = 'criar'; desenhar(); }
-    else if (a === 'fechar') { tela = 'fechado'; pend = null; desenhar(); }
-    else if (a === 'sair') { conta.sair(); tela = 'fechado'; desenhar(); }
+    if (a === 'ir-entrar') { pend = null; tela = 'entrar'; desenhar(true); }
+    else if (a === 'ir-criar') { tela = 'criar'; desenhar(true); }
+    else if (a === 'sair') {
+      // Sair da conta: apaga só o login. Os dados do app continuam neste celular
+      // (a sincronização com o servidor e a limpeza ao sair ficam para outra etapa).
+      conta.sair(); tela = 'entrar'; window.scrollTo(0, 0); desenhar(true);
+    }
     else if (a === 'reenviar') {
       if (!pend) return;
       liberaEm = Date.now() + 60000;
@@ -357,8 +376,10 @@ var conta = (function () {
         else msg(textoDoErro(r, 'Não consegui reenviar o código.'));
       });
     }
-  });
+  }
+  porta.addEventListener('click', clique);
+  if (barra) barra.addEventListener('click', clique);
 
-  desenhar();   // primeiro desenho, ao abrir o app
+  desenhar(false);   // primeiro desenho, ao abrir o app
 
 })();

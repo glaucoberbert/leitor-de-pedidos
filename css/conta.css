@@ -1,11 +1,25 @@
 /* ============================================================
-   conta.css  —  Aparência da área de conta (login)
+   conta.css  —  Aparência da porta de login e da faixa de conta
    ------------------------------------------------------------
-   Só ADICIONA classes novas (todas começam com "conta-").
+   Só ADICIONA classes novas (começam com "porta-" ou "conta-").
    Usa as cores e fontes do style.css, então acompanha o modo escuro.
    ============================================================ */
 
-/* Faixa de cima: texto à esquerda, link à direita. */
+/* A porta: tela cheia, com o formulário centralizado.
+   68px = o espaço que o body já reserva em cima e embaixo (20px + 48px). */
+.porta {
+  min-height: calc(100vh - 68px);
+  min-height: calc(100dvh - 68px);   /* "dvh" = altura real da tela do celular (sem a barra do navegador) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.porta-box { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 20px; }
+.porta-marca { text-align: center; }
+.porta-marca h1 { font-size: 44px; }
+.porta-marca .lead { margin-top: 8px; }
+
+/* Faixa pequena dentro do app: texto à esquerda, link à direita. */
 .conta-bar {
   display: flex;
   align-items: center;
@@ -21,7 +35,6 @@
   border: 1px solid var(--accent);
   border-radius: 10px;
   padding: 14px;
-  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 12px;
