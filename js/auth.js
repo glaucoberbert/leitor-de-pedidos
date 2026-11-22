@@ -141,18 +141,37 @@ var conta = (function () {
   var $ = function (id) { return document.getElementById(id); };
 
   // Em qual tela da porta estamos:
-  // 'entrar' | 'criar' | 'codigo' | 'esqueci' (NOVO) | 'redefinir' (NOVO)
+  // 'entrar' | 'criar' | 'codigo' | 'esqueci' | 'redefinir' | 'empresa' (NOVO)
   var tela = 'entrar';
 
   // Dados guardados SÓ na memória durante o cadastro/confirmação.
   // Servem para entrar sozinho depois de confirmar o código. Nada disso vai pro disco.
   var pend = null;              // { email, senha, lembrar }
-  var emailReset = '';          // NOVO: e-mail de quem está redefinindo a senha
-  var emailPre = '';            // NOVO: e-mail que já vem preenchido na tela de entrar (depois de redefinir)
+  var emailReset = '';          // e-mail de quem está redefinindo a senha
+  var emailPre = '';            // e-mail que já vem preenchido na tela de entrar (depois de redefinir)
   var avisoInicial = null;      // { texto, tipo } mostrado ao abrir uma tela
   var liberaEm = 0;             // quando o botão "Reenviar código" volta a funcionar
   var timerReenvio = null;
   var timerEspera = null;
+
+  // NOVO: a gaveta onde o app.js (via storage.js) guarda o estado do app neste celular.
+  // Tem que ser o mesmo nome que está no storage.js.
+  var CHAVE_ESTADO = 'leitor-pedidos:estado';
+
+  // NOVO: este celular ainda NÃO tem dados do app? Então é a primeira vez: pedimos a primeira empresa.
+  // (No seu celular já existe estado salvo, então isto dá "não" e nada muda.)
+  function semDados() {
+    try { return localStorage.getItem(CHAVE_ESTADO) === null; }
+    catch (e) { return false; }   // se o navegador bloqueia o armazenamento, não trava o app
+  }
+
+  // NOVO: "6", "6,50", "6.5" -> número. Texto inválido vira 0. (Igual ao parseMoney do app.js.)
+  function lerDinheiro(txt) {
+    var t = String(txt == null ? '' : txt).trim();
+    if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.');
+    var n = parseFloat(t);
+    return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  }
 
   // Protege o HTML (troca < > & " ' por códigos seguros), igual ao app.js.
   function esc(s) {
@@ -185,6 +204,21 @@ var conta = (function () {
   var LEMBRAR = '<label class="conta-lembrar"><input type="checkbox" id="conta-lembrar"> Lembrar de mim neste celular</label>';
 
   function formHTML() {
+    // NOVO: boas-vindas + cadastro da primeira empresa (só aparece na primeira vez, em celular sem dados).
+    if (tela === 'empresa') {
+      var u = conta.usuario() || {};
+      var primeiro = String(u.nome || '').trim().split(' ')[0];   // só o primeiro nome
+      return '<form class="conta-box" data-form="empresa" novalidate>' +
+        '<b class="conta-t">Bem-vindo' + (primeiro ? ', ' + esc(primeiro) : '') + '!</b>' +
+        '<p class="hint">Para começar, cadastre a empresa para a qual você entrega (restaurante, lanchonete...). ' +
+        'Depois você pode cadastrar outras.</p>' +
+        campoHTML('conta-empresa', 'Nome da empresa', 'text', 'maxlength="40" autocomplete="off"') +
+        campoHTML('conta-valor', 'Valor por entrega (R$)', 'text', 'inputmode="decimal" placeholder="ex.: 6" autocomplete="off"') +
+        campoHTML('conta-minimo', 'Mínimo garantido por dia (R$), se tiver', 'text', 'inputmode="decimal" placeholder="sem mínimo" autocomplete="off"') +
+        '<p class="hint">O valor e o mínimo podem ser mudados depois.</p>' +
+        rodapeHTML('Começar') +
+        '<button class="link" type="button" data-c="sair">Sair da conta</button></form>';
+    }
     if (tela === 'criar') {
       return '<form class="conta-box" data-form="criar" novalidate><b class="conta-t">Criar conta</b>' +
         campoHTML('conta-nome', 'Nome', 'text', 'name="name" autocomplete="name" maxlength="100"') +
@@ -204,7 +238,7 @@ var conta = (function () {
         '<button class="b2" type="button" id="conta-reenviar" data-c="reenviar">Reenviar código</button>' +
         '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
     }
-    // NOVO: pedir o código para redefinir a senha (só o e-mail).
+    // Pedir o código para redefinir a senha (só o e-mail).
     if (tela === 'esqueci') {
       return '<form class="conta-box" data-form="esqueci" novalidate><b class="conta-t">Esqueci minha senha</b>' +
         '<p class="hint">Digite o e-mail da sua conta. Enviaremos um código de 6 números para você criar uma senha nova.</p>' +
@@ -212,7 +246,7 @@ var conta = (function () {
         rodapeHTML('Enviar código') +
         '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
     }
-    // NOVO: digitar o código e a senha nova.
+    // Digitar o código e a senha nova.
     if (tela === 'redefinir') {
       return '<form class="conta-box" data-form="redefinir" novalidate><b class="conta-t">Criar senha nova</b>' +
         '<p class="hint">Digite o código enviado para <b>' + esc(emailReset) + '</b> (vale por 15 minutos; olhe também o spam) e escolha a senha nova.</p>' +
@@ -230,7 +264,7 @@ var conta = (function () {
       campoHTML('conta-email', 'E-mail', 'email', 'name="email" autocomplete="email" autocapitalize="none" spellcheck="false"') +
       campoHTML('conta-senha', 'Senha', 'password', 'name="password" autocomplete="current-password"') +
       LEMBRAR + rodapeHTML('Entrar') +
-      '<button class="link" type="button" data-c="ir-esqueci">Esqueci minha senha</button>' +   // NOVO
+      '<button class="link" type="button" data-c="ir-esqueci">Esqueci minha senha</button>' +
       '<button class="link" type="button" data-c="ir-criar">Não tenho conta: criar</button></form>';
   }
 
@@ -240,17 +274,24 @@ var conta = (function () {
     clearInterval(timerReenvio);
     var logado = conta.logado();
 
-    main.hidden = !logado;                                   // o app só aparece depois de entrar
-    porta.hidden = logado;                                   // a porta some depois de entrar
-    if (barra) barra.innerHTML = logado ? barraHTML() : '';
+    // NOVO: logado, mas neste celular nunca se usou o app? Mostra a tela da primeira empresa
+    // (na mesma "porta") em vez do app.
+    var precisaEmpresa = logado && semDados();
+    if (precisaEmpresa) tela = 'empresa';
+    else if (tela === 'empresa') tela = 'entrar';   // saiu da conta (ou já tem dados): volta pro login
 
-    if (logado) { porta.innerHTML = ''; return; }
+    var mostraApp = logado && !precisaEmpresa;
+    main.hidden = !mostraApp;                                // o app só aparece depois de entrar (e cadastrar a empresa)
+    porta.hidden = mostraApp;                                // a porta some quando o app aparece
+    if (barra) barra.innerHTML = mostraApp ? barraHTML() : '';
+
+    if (mostraApp) { porta.innerHTML = ''; return; }
 
     porta.innerHTML = '<div class="porta-box">' +
       '<div class="porta-marca"><h1>Todoke</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
       formHTML() + '</div>';
 
-    // NOVO: depois de redefinir a senha, o e-mail já vem preenchido na tela de entrar.
+    // Depois de redefinir a senha, o e-mail já vem preenchido na tela de entrar.
     if (tela === 'entrar' && emailPre) { $('conta-email').value = emailPre; emailPre = ''; }
 
     if (avisoInicial) { msg(avisoInicial.texto, avisoInicial.tipo); avisoInicial = null; }
@@ -318,7 +359,7 @@ var conta = (function () {
     msg(''); ocupar(true);
     conta.entrar(email, senha, lembrar).then(function (r) {
       ocupar(false);
-      if (r.status === 200) { window.scrollTo(0, 0); desenhar(false); return; }   // entrou: mostra o app
+      if (r.status === 200) { window.scrollTo(0, 0); desenhar(true); return; }   // entrou: mostra o app (ou a 1ª empresa)
       if (r.status === 403) {
         // Senha certa, mas o e-mail ainda não foi confirmado: pede um código novo e abre a tela do código.
         pend = { email: email, senha: senha, lembrar: lembrar };
@@ -365,14 +406,14 @@ var conta = (function () {
       return conta.entrar(pend.email, pend.senha, pend.lembrar).then(function (r2) {
         ocupar(false);
         pend = null;   // esquece a senha da memória
-        if (r2.status === 200) { window.scrollTo(0, 0); desenhar(false); return; }
+        if (r2.status === 200) { window.scrollTo(0, 0); desenhar(true); return; }
         avisoInicial = { texto: 'E-mail confirmado! Agora é só entrar.', tipo: 'ok' };
         tela = 'entrar'; desenhar(true);
       });
     }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
   }
 
-  // NOVO: "esqueci minha senha", passo 1: pede o código por e-mail.
+  // "Esqueci minha senha", passo 1: pede o código por e-mail.
   function enviarEsqueci() {
     var email = $('conta-email').value.trim();
     if (!/^\S+@\S+\.\S+$/.test(email)) { msg('Confira o e-mail.'); return; }
@@ -388,7 +429,7 @@ var conta = (function () {
     }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
   }
 
-  // NOVO: "esqueci minha senha", passo 2: código + senha nova.
+  // "Esqueci minha senha", passo 2: código + senha nova.
   function enviarRedefinir() {
     var cod = $('conta-codigo').value.replace(/\D/g, '');
     var s1 = $('conta-senha').value, s2 = $('conta-senha2').value;
@@ -405,6 +446,34 @@ var conta = (function () {
     }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
   }
 
+  // NOVO: cadastra a primeira empresa e abre o app.
+  function enviarEmpresa() {
+    var nome = $('conta-empresa').value.trim();
+    var valor = lerDinheiro($('conta-valor').value);
+    var minimo = lerDinheiro($('conta-minimo').value);   // vazio = 0 = sem mínimo
+    if (nome.length < 2) { msg('Digite o nome da empresa.'); return; }
+    if (!valor) { msg('Digite o valor que você recebe por entrega (ex.: 6).'); return; }
+
+    // Monta o "estado inicial" do app com SÓ essa empresa, no mesmo formato que o app.js salva:
+    // sem pedidos, sem exemplo (demo: false) e sem entregas abertas.
+    var id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var estado = {
+      v: 1,
+      servicos: [{ id: id, nome: nome, valor: valor, minimo: minimo }],
+      servicoId: id,
+      texto: '',
+      demo: false,
+      orders: [],
+      ignored: 0,
+      turno: null
+    };
+    try { localStorage.setItem(CHAVE_ESTADO, JSON.stringify(estado)); }
+    catch (e) { msg('Não consegui salvar neste celular. Confira se o navegador permite guardar dados.'); return; }
+
+    // Recarrega a página: o app.js abre já lendo esse estado (só com a empresa nova).
+    window.location.reload();
+  }
+
   /* ---------- Eventos ---------- */
 
   // Enviar os formulários da porta (botão ou tecla Enter).
@@ -414,8 +483,9 @@ var conta = (function () {
     if (f === 'entrar') enviarEntrar();
     else if (f === 'criar') enviarCriar();
     else if (f === 'codigo') enviarCodigo();
-    else if (f === 'esqueci') enviarEsqueci();          // NOVO
-    else if (f === 'redefinir') enviarRedefinir();      // NOVO
+    else if (f === 'esqueci') enviarEsqueci();
+    else if (f === 'redefinir') enviarRedefinir();
+    else if (f === 'empresa') enviarEmpresa();          // NOVO
   });
 
   // Cliques nos botões da porta e da faixa "Sair da conta" (um ouvinte para os dois lugares).
@@ -425,7 +495,7 @@ var conta = (function () {
     var a = b.getAttribute('data-c');
     if (a === 'ir-entrar') { pend = null; emailReset = ''; tela = 'entrar'; desenhar(true); }
     else if (a === 'ir-criar') { tela = 'criar'; desenhar(true); }
-    else if (a === 'ir-esqueci') { tela = 'esqueci'; desenhar(true); }   // NOVO
+    else if (a === 'ir-esqueci') { tela = 'esqueci'; desenhar(true); }
     else if (a === 'sair') {
       // Sair da conta: apaga só o login. Os dados do app continuam neste celular
       // (a sincronização com o servidor e a limpeza ao sair ficam para outra etapa).
@@ -440,7 +510,7 @@ var conta = (function () {
         else msg(textoDoErro(r, 'Não consegui reenviar o código.'));
       });
     }
-    else if (a === 'reenviar-reset') {   // NOVO: reenviar o código de redefinição
+    else if (a === 'reenviar-reset') {   // reenviar o código de redefinição
       if (!emailReset) return;
       liberaEm = Date.now() + 60000;
       contagemReenvio();
