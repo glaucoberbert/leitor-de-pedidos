@@ -140,12 +140,15 @@ var conta = (function () {
 
   var $ = function (id) { return document.getElementById(id); };
 
-  // Em qual tela da porta estamos: 'entrar' | 'criar' | 'codigo'
+  // Em qual tela da porta estamos:
+  // 'entrar' | 'criar' | 'codigo' | 'esqueci' (NOVO) | 'redefinir' (NOVO)
   var tela = 'entrar';
 
   // Dados guardados SÓ na memória durante o cadastro/confirmação.
   // Servem para entrar sozinho depois de confirmar o código. Nada disso vai pro disco.
   var pend = null;              // { email, senha, lembrar }
+  var emailReset = '';          // NOVO: e-mail de quem está redefinindo a senha
+  var emailPre = '';            // NOVO: e-mail que já vem preenchido na tela de entrar (depois de redefinir)
   var avisoInicial = null;      // { texto, tipo } mostrado ao abrir uma tela
   var liberaEm = 0;             // quando o botão "Reenviar código" volta a funcionar
   var timerReenvio = null;
@@ -201,11 +204,33 @@ var conta = (function () {
         '<button class="b2" type="button" id="conta-reenviar" data-c="reenviar">Reenviar código</button>' +
         '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
     }
+    // NOVO: pedir o código para redefinir a senha (só o e-mail).
+    if (tela === 'esqueci') {
+      return '<form class="conta-box" data-form="esqueci" novalidate><b class="conta-t">Esqueci minha senha</b>' +
+        '<p class="hint">Digite o e-mail da sua conta. Enviaremos um código de 6 números para você criar uma senha nova.</p>' +
+        campoHTML('conta-email', 'E-mail', 'email', 'name="email" autocomplete="email" autocapitalize="none" spellcheck="false"') +
+        rodapeHTML('Enviar código') +
+        '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
+    }
+    // NOVO: digitar o código e a senha nova.
+    if (tela === 'redefinir') {
+      return '<form class="conta-box" data-form="redefinir" novalidate><b class="conta-t">Criar senha nova</b>' +
+        '<p class="hint">Digite o código enviado para <b>' + esc(emailReset) + '</b> (vale por 15 minutos; olhe também o spam) e escolha a senha nova.</p>' +
+        '<div class="f"><label class="lab" for="conta-codigo">Código</label>' +
+        '<input class="in conta-cod" id="conta-codigo" type="text" inputmode="numeric" maxlength="6" ' +
+        'autocomplete="one-time-code" placeholder="000000"></div>' +
+        campoHTML('conta-senha', 'Senha nova (mínimo 8 caracteres)', 'password', 'name="new-password" autocomplete="new-password"') +
+        campoHTML('conta-senha2', 'Repita a senha nova', 'password', 'name="new-password" autocomplete="new-password"') +
+        rodapeHTML('Salvar senha nova') +
+        '<button class="b2" type="button" id="conta-reenviar" data-c="reenviar-reset">Reenviar código</button>' +
+        '<button class="link" type="button" data-c="ir-entrar">Voltar para entrar</button></form>';
+    }
     // tela === 'entrar' (a primeira)
     return '<form class="conta-box" data-form="entrar" novalidate><b class="conta-t">Entrar</b>' +
       campoHTML('conta-email', 'E-mail', 'email', 'name="email" autocomplete="email" autocapitalize="none" spellcheck="false"') +
       campoHTML('conta-senha', 'Senha', 'password', 'name="password" autocomplete="current-password"') +
       LEMBRAR + rodapeHTML('Entrar') +
+      '<button class="link" type="button" data-c="ir-esqueci">Esqueci minha senha</button>' +   // NOVO
       '<button class="link" type="button" data-c="ir-criar">Não tenho conta: criar</button></form>';
   }
 
@@ -225,8 +250,11 @@ var conta = (function () {
       '<div class="porta-marca"><h1>Todoke</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
       formHTML() + '</div>';
 
+    // NOVO: depois de redefinir a senha, o e-mail já vem preenchido na tela de entrar.
+    if (tela === 'entrar' && emailPre) { $('conta-email').value = emailPre; emailPre = ''; }
+
     if (avisoInicial) { msg(avisoInicial.texto, avisoInicial.tipo); avisoInicial = null; }
-    if (tela === 'codigo') contagemReenvio();
+    if (tela === 'codigo' || tela === 'redefinir') contagemReenvio();
     if (focar) {
       var primeiro = porta.querySelector('form input:not([type="checkbox"])');
       if (primeiro) primeiro.focus();
@@ -344,6 +372,39 @@ var conta = (function () {
     }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
   }
 
+  // NOVO: "esqueci minha senha", passo 1: pede o código por e-mail.
+  function enviarEsqueci() {
+    var email = $('conta-email').value.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) { msg('Confira o e-mail.'); return; }
+    msg(''); ocupar(true);
+    conta.chamar('POST', '/auth/esqueci-senha', { email: email }).then(function (r) {
+      ocupar(false);
+      if (r.status !== 200) { msg(textoDoErro(r, 'Não consegui enviar o código.')); return; }
+      // O servidor responde igual exista o e-mail ou não; por isso o aviso também é neutro.
+      emailReset = email;
+      liberaEm = Date.now() + 60000;
+      avisoInicial = { texto: 'Se o e-mail estiver cadastrado, o código já foi enviado.', tipo: 'ok' };
+      tela = 'redefinir'; desenhar(true);
+    }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
+  }
+
+  // NOVO: "esqueci minha senha", passo 2: código + senha nova.
+  function enviarRedefinir() {
+    var cod = $('conta-codigo').value.replace(/\D/g, '');
+    var s1 = $('conta-senha').value, s2 = $('conta-senha2').value;
+    if (cod.length !== 6) { msg('Digite os 6 números do código.'); return; }
+    if (s1.length < 8) { msg('A senha precisa ter pelo menos 8 caracteres.'); return; }
+    if (s1 !== s2) { msg('As duas senhas não são iguais.'); return; }
+    msg(''); ocupar(true);
+    conta.chamar('POST', '/auth/redefinir-senha', { email: emailReset, codigo: cod, nova_senha: s1 }).then(function (r) {
+      ocupar(false);
+      if (r.status !== 200) { msg(textoDoErro(r, 'Código inválido.')); return; }
+      emailPre = emailReset; emailReset = '';
+      avisoInicial = { texto: 'Senha alterada! Entre com a senha nova.', tipo: 'ok' };
+      tela = 'entrar'; desenhar(true);
+    }).catch(function () { ocupar(false); msg('Algo deu errado. Tente de novo.'); });
+  }
+
   /* ---------- Eventos ---------- */
 
   // Enviar os formulários da porta (botão ou tecla Enter).
@@ -353,6 +414,8 @@ var conta = (function () {
     if (f === 'entrar') enviarEntrar();
     else if (f === 'criar') enviarCriar();
     else if (f === 'codigo') enviarCodigo();
+    else if (f === 'esqueci') enviarEsqueci();          // NOVO
+    else if (f === 'redefinir') enviarRedefinir();      // NOVO
   });
 
   // Cliques nos botões da porta e da faixa "Sair da conta" (um ouvinte para os dois lugares).
@@ -360,8 +423,9 @@ var conta = (function () {
     var b = e.target.closest('[data-c]');
     if (!b) return;
     var a = b.getAttribute('data-c');
-    if (a === 'ir-entrar') { pend = null; tela = 'entrar'; desenhar(true); }
+    if (a === 'ir-entrar') { pend = null; emailReset = ''; tela = 'entrar'; desenhar(true); }
     else if (a === 'ir-criar') { tela = 'criar'; desenhar(true); }
+    else if (a === 'ir-esqueci') { tela = 'esqueci'; desenhar(true); }   // NOVO
     else if (a === 'sair') {
       // Sair da conta: apaga só o login. Os dados do app continuam neste celular
       // (a sincronização com o servidor e a limpeza ao sair ficam para outra etapa).
@@ -372,6 +436,15 @@ var conta = (function () {
       liberaEm = Date.now() + 60000;
       contagemReenvio();
       conta.chamar('POST', '/auth/reenviar-codigo', { email: pend.email }).then(function (r) {
+        if (r.status === 200) msg('Pedido enviado. Confira seu e-mail (e o spam).', 'ok');
+        else msg(textoDoErro(r, 'Não consegui reenviar o código.'));
+      });
+    }
+    else if (a === 'reenviar-reset') {   // NOVO: reenviar o código de redefinição
+      if (!emailReset) return;
+      liberaEm = Date.now() + 60000;
+      contagemReenvio();
+      conta.chamar('POST', '/auth/esqueci-senha', { email: emailReset }).then(function (r) {
         if (r.status === 200) msg('Pedido enviado. Confira seu e-mail (e o spam).', 'ok');
         else msg(textoDoErro(r, 'Não consegui reenviar o código.'));
       });
