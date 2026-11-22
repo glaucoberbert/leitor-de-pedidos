@@ -442,6 +442,10 @@
     $('svcdel').innerHTML = svcDelHTML();
     $('valorPadrao').value = fmtNum(svc(S.servicoId).valor);
     $('minimo').value = svc(S.servicoId).minimo > 0 ? fmtNum(svc(S.servicoId).minimo) : '';   // vazio = sem mínimo
+        // NOVO: seletor de empresa da tela principal (aqui só se ESCOLHE; editar fica na aba Empresas).
+    $('empSel').innerHTML = S.servicos.map(function (s) {
+      return '<button class="b2" type="button" data-es="' + esc(s.id) + '" aria-pressed="' + (s.id === S.servicoId ? 'true' : 'false') + '">' + esc(s.nome) + '</button>';
+    }).join('');
   }
 
   // Quando o valor padrão muda, os cards que você NÃO alterou na mão acompanham.
@@ -922,6 +926,13 @@
     $('main').hidden = ui.view !== 'main';
     $('turno').hidden = ui.view !== 'main';
     $('rel').hidden = ui.view !== 'rel';
+        $('emp').hidden = ui.view !== 'emp';   // NOVO: a aba Empresas só aparece quando é a tela atual
+    // NOVO: marca no menu qual é a tela atual
+    var itensMenu = document.querySelectorAll('[data-ir]');
+    for (var im = 0; im < itensMenu.length; im++) {
+      var atual = itensMenu[im].getAttribute('data-ir') === (ui.view === 'emp' ? 'empresas' : 'corridas');
+      itensMenu[im].setAttribute('aria-current', atual ? 'page' : 'false');
+    }
     renderTurno();
     renderServicos();
     renderList();
@@ -998,6 +1009,23 @@
     renderServicos();
     aplicarValorPadrao();
     queueSave();
+  });
+
+  // NOVO: escolher a empresa na tela principal (os botões do seletor "Empresa").
+  $('empSel').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-es]');
+    if (!b) return;
+    S.servicoId = b.getAttribute('data-es');
+    renderServicos();
+    aplicarValorPadrao();
+    queueSave();
+  });
+
+  // NOVO: o menu lateral (js/menu.js) avisa aqui qual tela abrir: 'corridas' ou 'empresas'.
+  document.addEventListener('todoke:ir', function (e) {
+    ui.view = e.detail === 'empresas' ? 'emp' : 'main';
+    renderAll();
+    window.scrollTo(0, 0);
   });
 
   // Mínimo garantido do serviço que está na tela. Vazio ou 0 = sem mínimo.
@@ -1085,6 +1113,8 @@
   if (window.addEventListener) {
     window.addEventListener('popstate', function () {
       if (saindo) return;
+            // NOVO: se o menu lateral está aberto, o "voltar" só fecha o menu (e recoloca a entrada de enfeite).
+      if (window.menu && menu.aberto()) { menu.fechar(); armarVoltar(); return; }
       // Salva já o que estiver esperando (o salvamento normal espera meio segundo).
       if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; flush(); }
       $('sairMsg').textContent = (ui.erroSalvar || ui.semSalvar)

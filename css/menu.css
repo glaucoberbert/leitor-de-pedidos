@@ -1,0 +1,72 @@
+/* ============================================================
+   menu.css  —  Menu lateral (3 barrinhas) e tela Empresas
+   ------------------------------------------------------------
+   Só ADICIONA classes novas (começam com "menu-", "topo" ou "tela-t").
+   Usa as cores e fontes do style.css, então acompanha o modo escuro.
+   ============================================================ */
+
+/* Topo: botão do menu + título lado a lado. */
+.topo { display: flex; align-items: flex-start; gap: 12px; }
+.topo > div { min-width: 0; }
+
+/* Título das telas internas (Empresas), no mesmo estilo do título principal. */
+.tela-t { font: 700 32px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+
+/* ---------- Botão das 3 barrinhas ---------- */
+.menu-btn {
+  flex: none;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+/* Três barrinhas VERTICAIS (3px de largura, 20px de altura). */
+.menu-ico { display: flex; gap: 5px; transition: transform .25s ease; }
+.menu-ico i { display: block; width: 3px; height: 20px; border-radius: 2px; background: var(--ink); }
+/* Menu aberto: o conjunto gira 90° e as barrinhas ficam HORIZONTAIS. */
+.menu-btn.aberto .menu-ico { transform: rotate(90deg); }
+
+/* ---------- Fundo escurecido (tocar nele fecha o menu) ---------- */
+.menu-fundo {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(0, 0, 0, .45);
+  opacity: 0; visibility: hidden;
+  transition: opacity .22s ease, visibility 0s .22s;   /* só some do "toque" depois da animação */
+}
+.menu-fundo.aberto { opacity: 1; visibility: visible; transition: opacity .22s ease; }
+
+/* ---------- Painel que desliza da esquerda ---------- */
+.menu-painel {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 45;
+  width: min(300px, 84vw);
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: max(20px, env(safe-area-inset-top, 0px)) 16px max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  visibility: hidden;                                   /* fechado: não recebe toque nem foco */
+  transition: transform .22s ease, visibility 0s .22s;
+}
+.menu-painel.aberto { transform: none; visibility: visible; transition: transform .22s ease; }
+
+.menu-marca { font: 700 30px/1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+
+/* A área da conta fica empilhada dentro do painel. */
+.menu-painel .conta-bar { flex-direction: column; align-items: flex-start; }
+
+/* Botões do menu: a tela atual fica na cor de destaque. */
+.menu-item {
+  min-height: 48px; padding: 0 14px; text-align: left;
+  border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--ink);
+  font: 600 17px/1 var(--f-body); cursor: pointer;
+}
+.menu-item[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Quem prefere menos movimento no celular: sem animação. */
+@media (prefers-reduced-motion: reduce) {
+  .menu-ico, .menu-fundo, .menu-painel { transition: none; }
+}

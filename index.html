@@ -3,9 +3,9 @@
   index.html  —  O "esqueleto" da página
   ------------------------------------------------------------
   HTML só descreve O QUE existe na tela. A aparência está em
-  css/style.css e o comportamento em js/app.js.
+  css/style.css (e menu.css, conta.css) e o comportamento em js/app.js.
 
-  Várias partes aqui ficam vazias de propósito (turno, serviços, resumo,
+  Várias partes aqui ficam vazias de propósito (turno, empresas, resumo,
   cards, relatório): o app.js preenche essas partes conforme os dados.
 -->
 <html lang="pt-BR">
@@ -19,20 +19,24 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="css/style.css">
-  <!-- NOVO: aparência da área de conta (login) -->
   <link rel="stylesheet" href="css/conta.css">
+  <!-- NOVO: aparência do menu lateral -->
+  <link rel="stylesheet" href="css/menu.css">
 </head>
 <body>
 
   <main class="wrap">
 
-    <header>
-      <h1>Leitor de Pedidos</h1>
-      <p class="lead">Cole as mensagens do WhatsApp. Cada pedido vira um card pronto pra colocar no Spoke.</p>
+    <!-- NOVO: o topo agora tem o botão do menu (3 barrinhas) ao lado do título -->
+    <header class="topo">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menuPainel">
+        <span class="menu-ico" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <div>
+        <h1>Leitor de Pedidos</h1>
+        <p class="lead">Cole as mensagens do WhatsApp. Cada pedido vira um card pronto pra colocar no Spoke.</p>
+      </div>
     </header>
-
-    <!-- NOVO: área da conta (login opcional). O js/auth.js preenche esta parte. -->
-    <section id="areaConta" aria-label="Conta"></section>
 
     <!-- Barra das entregas do dia: abrir, ver o andamento, fechar -->
     <section class="turno" id="turno" aria-label="Entregas do dia"></section>
@@ -40,31 +44,14 @@
     <!-- Mensagens curtas de status (salvo, erro...) -->
     <p class="status" id="status" hidden></p>
 
-    <!-- TELA PRINCIPAL -->
+    <!-- TELA PRINCIPAL (Corridas) -->
     <div class="stack" id="main">
 
       <section class="paste" aria-label="Mensagens">
+        <!-- NOVO: aqui só se ESCOLHE a empresa da rota. Para mudar valor, mínimo ou criar/apagar, use a aba Empresas. -->
         <div class="f">
-          <span class="lab">Serviço</span>
-          <div class="seg" id="servicos"></div>
-          <div class="row" id="novo" hidden>
-            <input class="in" id="novoNome" placeholder="Nome do serviço" autocomplete="off">
-            <button class="b1" id="novoOk" type="button">Salvar</button>
-          </div>
-          <!-- Apagar serviço: o app.js mostra o link e as duas perguntas aqui -->
-          <div class="notes" id="svcdel"></div>
-        </div>
-
-        <div class="f">
-          <label class="lab" for="valorPadrao">Valor por entrega (R$)</label>
-          <input class="in sm" id="valorPadrao" inputmode="decimal" autocomplete="off">
-          <span class="hint">Vale pra todos os cards. Em entrega mais longa, mude só no card dela.</span>
-        </div>
-
-        <div class="f">
-          <label class="lab" for="minimo">Mínimo garantido por dia (R$)</label>
-          <input class="in sm" id="minimo" inputmode="decimal" placeholder="sem mínimo" autocomplete="off">
-          <span class="hint">Se as entregas do dia deste serviço somarem menos que isso, o relatório completa até esse valor. Deixe em branco se não tem.</span>
+          <span class="lab">Empresa</span>
+          <div class="seg" id="empSel"></div>
         </div>
 
         <div class="paste-head">
@@ -147,8 +134,53 @@
       <p class="foot" id="foot" hidden></p>
     </div>
 
+    <!-- NOVO: ABA EMPRESAS. Os campos são os mesmos que ficavam na tela principal
+         (mesmos ids), por isso o app.js continua funcionando sem mudar. -->
+    <section class="stack" id="emp" hidden aria-label="Empresas">
+      <header>
+        <h2 class="tela-t">Empresas</h2>
+        <p class="lead">As empresas para as quais você entrega. Escolha uma para ver ou mudar os valores dela.</p>
+      </header>
+
+      <section class="paste">
+        <div class="f">
+          <span class="lab">Empresa</span>
+          <div class="seg" id="servicos"></div>
+          <div class="row" id="novo" hidden>
+            <input class="in" id="novoNome" placeholder="Nome da empresa" autocomplete="off">
+            <button class="b1" id="novoOk" type="button">Salvar</button>
+          </div>
+          <!-- Apagar empresa: o app.js mostra o link e as duas perguntas aqui -->
+          <div class="notes" id="svcdel"></div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="valorPadrao">Valor por entrega (R$)</label>
+          <input class="in sm" id="valorPadrao" inputmode="decimal" autocomplete="off">
+          <span class="hint">Vale pra todos os cards. Em entrega mais longa, mude só no card dela.</span>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="minimo">Mínimo garantido por dia (R$)</label>
+          <input class="in sm" id="minimo" inputmode="decimal" placeholder="sem mínimo" autocomplete="off">
+          <span class="hint">Se as entregas do dia desta empresa somarem menos que isso, o relatório completa até esse valor. Deixe em branco se não tem.</span>
+        </div>
+      </section>
+    </section>
+
     <!-- TELA DO RELATÓRIO (aparece ao tocar em "Fechar entregas") -->
     <section class="stack" id="rel" hidden></section>
+
+    <!-- NOVO: MENU LATERAL. Fica dentro do <main>, então só existe depois do login.
+         A área da conta ("Conectado como... Sair da conta") agora mora aqui dentro
+         (o auth.js a preenche pelo id areaConta). -->
+    <div class="menu-fundo" id="menuFundo"></div>
+    <nav class="menu-painel" id="menuPainel" aria-label="Menu">
+      <b class="menu-marca">Todoke</b>
+      <section id="areaConta" aria-label="Conta"></section>
+      <button class="menu-item" type="button" data-ir="corridas">Corridas</button>
+      <button class="menu-item" type="button" data-ir="empresas">Empresas</button>
+    </nav>
 
   </main>
 
@@ -168,12 +200,14 @@
     A ORDEM IMPORTA:
       parser.js  cria parseOrders()
       storage.js cria "store" (onde os dados ficam guardados)
-      auth.js    cria "conta" (login opcional)   <- NOVO
+      auth.js    cria "conta" (login) e a porta de entrada
+      menu.js    cria "menu" (menu lateral)   <- NOVO
       app.js     usa os de cima
   -->
   <script src="js/parser.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/menu.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
