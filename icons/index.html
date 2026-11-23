@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!--
+  index.html  —  O "esqueleto" da página
+  ------------------------------------------------------------
+  HTML só descreve O QUE existe na tela. A aparência está em
+  css/style.css (e menu.css, conta.css, tema.css, corridas.css) e o comportamento em js/app.js.
+
+  Várias partes aqui ficam vazias de propósito (turno, empresas, resumo,
+  cards, relatório): o app.js preenche essas partes conforme os dados.
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MotoGiro</title>
+  <!-- Faz o site poder ser instalado como app (e virar APK) -->
+  <link rel="manifest" href="manifest.json">
+  <!-- Cor da barra de cima do celular. O js/tema.js troca essa cor conforme o tema. -->
+  <meta name="theme-color" content="#0E1216">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- NOVO: a fonte Inter agora fica na pasta fonts/ (carregada pelo css/tema.css),
+       então o link do Google Fonts foi removido e o app abre até sem internet. -->
+
+  <!-- O número depois do "?v=" serve pra o celular baixar a versão nova (sobe a cada entrega) -->
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/conta.css?v=6">
+  <link rel="stylesheet" href="css/menu.css?v=6">
+  <!-- NOVO: temas (Noite, Dia, Azul). Vem por ÚLTIMO para sobrescrever as cores antigas -->
+  <link rel="stylesheet" href="css/tema.css?v=6">
+  <!-- NOVO: visual da tela Corridas (topo, cartão do dia, cards). Vem depois do tema.css -->
+  <link rel="stylesheet" href="css/corridas.css?v=6">
+
+  <!-- NOVO: liga o tema escolhido ANTES da tela aparecer (por isso fica aqui no <head>) -->
+  <script src="js/tema.js?v=6"></script>
+</head>
+<body>
+
+  <main class="wrap">
+
+    <!-- TOPO: botão do menu (3 barrinhas) + saudação + avatar com a inicial.
+         O app.js preenche a saudação ("Boa noite,"), o nome e a letra do avatar. -->
+    <header class="topo">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menuPainel">
+        <span class="menu-ico" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <div class="saud">
+        <span class="saud-1" id="saudTxt"></span>
+        <b class="saud-2" id="saudNome"></b>
+      </div>
+      <button class="avatar" id="avatar" type="button" data-ir="perfil" aria-label="Abrir Perfil"><span id="avatarLetra"></span></button>
+    </header>
+
+    <!-- Mensagens curtas de status (salvo, erro...) -->
+    <p class="status" id="status" hidden></p>
+
+    <!-- TELA PRINCIPAL (Corridas) -->
+    <div class="stack" id="main">
+
+      <!-- Empresa da rota: um chip que abre uma listinha. Para mudar valor, mínimo ou
+           criar/apagar empresa, use a aba Empresas. -->
+      <div class="emp-wrap" id="empWrap">
+        <button class="emp-chip" id="empChip" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="empSel">
+          <span id="empNome"></span>
+          <span data-ic="baixo" data-tam="20"></span>
+        </button>
+        <div class="emp-pop" id="empSel" hidden></div>
+      </div>
+
+      <!-- CARTÃO DO DIA (entregas abertas / fechadas): o app.js desenha aqui dentro -->
+      <section class="turno" id="turno" aria-label="Entregas do dia"></section>
+
+      <!-- Botão grande de colar + botão "+" (pedido manual) -->
+      <div class="acoes">
+        <button class="b-colar" id="colarBtn" type="button">
+          <span data-ic="prancheta" data-tam="24"></span>
+          <span>Colar pedidos do WhatsApp</span>
+        </button>
+        <button class="b-mais" id="manualBtn" type="button" aria-label="Inserir pedido manualmente">
+          <span data-ic="mais" data-tam="28"></span>
+        </button>
+      </div>
+
+      <!-- Caixa de colar na mão: só aparece se o celular não deixar o botão ler a área de
+           transferência sozinho (o app.js abre e fecha). O id "src" continua o mesmo. -->
+      <section class="colar" id="colar" hidden aria-label="Colar mensagens">
+        <label class="colar-t" for="src">Cole aqui as mensagens do WhatsApp</label>
+        <textarea id="src" spellcheck="false" placeholder="Cole aqui as mensagens do WhatsApp"></textarea>
+        <div class="row">
+          <button class="b1" id="run" type="button">Ler pedidos</button>
+          <button class="b2" id="colarFechar" type="button">Fechar</button>
+        </div>
+      </section>
+
+      <!-- Telinha de pedido manual (o app.js abre e fecha) -->
+      <div class="manual" id="manual" hidden>
+        <span class="lab">Novo pedido manual</span>
+
+        <div class="f">
+          <label class="lab" for="mNome">Nome</label>
+          <input class="in nm" id="mNome" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mBairro">Bairro</label>
+          <input class="in" id="mBairro" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mEnd">Endereço (rua e número)</label>
+          <input class="in ad" id="mEnd" placeholder="Rua X, 123" autocomplete="off">
+        </div>
+
+        <div class="f">
+          <span class="lab">Pagamento</span>
+          <div class="seg" id="mForma">
+            <button class="b2" type="button" data-mf="dinheiro" aria-pressed="false">Dinheiro</button>
+            <button class="b2" type="button" data-mf="cartao" aria-pressed="false">Cartão</button>
+            <button class="b2" type="button" data-mf="pix" aria-pressed="false">Pix</button>
+            <button class="b2" type="button" data-mf="pago" aria-pressed="false">Pago</button>
+          </div>
+        </div>
+        <div class="pay-in" id="mValores">
+          <div class="f">
+            <label class="lab" for="mValor">Valor (R$)</label>
+            <input class="in sm" id="mValor" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="f" id="mTrocoBox" hidden>
+            <label class="lab" for="mTroco">Troco pra (R$)</label>
+            <input class="in sm" id="mTroco" inputmode="decimal" placeholder="opcional" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="mRefri">Refri</label>
+          <input class="in" id="mRefri" placeholder="sem refri" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mObs">Observação</label>
+          <input class="in" id="mObs" placeholder="sem observação" autocomplete="off">
+        </div>
+
+        <div class="notice warn" id="mErro" hidden></div>
+        <div class="row">
+          <button class="b1" id="mAdd" type="button">Adicionar pedido</button>
+          <button class="b2" id="mCancel" type="button">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- ROTA ATUAL: título, contagem e a lixeira (limpa a rota) -->
+      <div class="rota-h">
+        <div class="rota-tx">
+          <h2 class="rota-t">Rota atual</h2>
+          <p class="rota-sub" id="rotaSub"></p>
+          <span class="demo" id="demo" hidden>Exemplo com dados inventados</span>
+        </div>
+        <button class="icon-btn" id="clear" type="button" aria-label="Limpar a rota">
+          <span data-ic="lixeira" data-tam="22"></span>
+        </button>
+      </div>
+
+      <!-- Os cards dos pedidos (o app.js desenha) -->
+      <section class="list" id="list" aria-label="Pedidos"></section>
+      <p class="foot" id="foot" hidden></p>
+
+      <!-- Resumo e fechamento da rota -->
+      <section class="sum" id="sum" aria-label="Resumo da rota"></section>
+      <div class="row fim-acoes">
+        <button class="b2" id="copyall" type="button" style="flex:1 1 auto">Copiar lista toda</button>
+        <button class="b1" id="terminar" type="button">Terminar rota</button>
+      </div>
+      <p class="hint" id="hintfim" hidden></p>
+      <div class="notes" id="fim"></div>
+    </div>
+
+    <!-- NOVO: ABA EMPRESAS. Os campos são os mesmos que ficavam na tela principal
+         (mesmos ids), por isso o app.js continua funcionando sem mudar. -->
+    <section class="stack" id="emp" hidden aria-label="Empresas">
+      <header>
+        <h2 class="tela-t">Empresas</h2>
+        <p class="lead">As empresas para as quais você entrega. Escolha uma para ver ou mudar os valores dela.</p>
+      </header>
+
+      <section class="paste">
+        <div class="f">
+          <span class="lab">Empresa</span>
+          <div class="seg" id="servicos"></div>
+          <div class="row" id="novo" hidden>
+            <input class="in" id="novoNome" placeholder="Nome da empresa" autocomplete="off">
+            <button class="b1" id="novoOk" type="button">Salvar</button>
+          </div>
+          <!-- Apagar empresa: o app.js mostra o link e as duas perguntas aqui -->
+          <div class="notes" id="svcdel"></div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="valorPadrao">Valor por entrega (R$)</label>
+          <input class="in sm" id="valorPadrao" inputmode="decimal" autocomplete="off">
+          <span class="hint">Vale pra todos os cards. Em entrega mais longa, mude só no card dela.</span>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="minimo">Mínimo garantido por dia (R$)</label>
+          <input class="in sm" id="minimo" inputmode="decimal" placeholder="sem mínimo" autocomplete="off">
+          <span class="hint">Se as entregas do dia desta empresa somarem menos que isso, o relatório completa até esse valor. Deixe em branco se não tem.</span>
+        </div>
+      </section>
+    </section>
+
+    <!-- HISTÓRICO (por enquanto só um aviso; a tela de verdade vem numa próxima etapa) -->
+    <section class="stack" id="hist" hidden aria-label="Histórico">
+      <header>
+        <h2 class="tela-t">Histórico</h2>
+        <p class="lead">Suas rotas e dias fechados.</p>
+      </header>
+      <div class="vazio">
+        <span data-ic="historico" data-tam="36"></span>
+        <b>Em breve</b>
+        <p>Aqui vão aparecer os dias que você fechou, com total de entregas e ganhos.</p>
+      </div>
+    </section>
+
+    <!-- PERFIL: por enquanto só a Aparência (tema). Nome, telefone, foto e senha vêm depois. -->
+    <section class="stack" id="perfil" hidden aria-label="Perfil">
+      <header>
+        <h2 class="tela-t">Perfil</h2>
+      </header>
+      <div class="perfil-card">
+        <div class="avatar grande" aria-hidden="true"><span id="perfilLetra"></span></div>
+        <div class="perfil-dados">
+          <b id="perfilNome"></b>
+          <span id="perfilEmail"></span>
+        </div>
+      </div>
+      <section class="perfil-bloco" aria-labelledby="apT">
+        <h3 id="apT" class="bloco-t"><span data-ic="aparencia" data-tam="20"></span> Aparência</h3>
+        <div class="temas" id="temas" role="radiogroup" aria-labelledby="apT"></div>
+        <p class="hint">Automático segue o modo claro/escuro do seu celular.</p>
+      </section>
+    </section>
+
+    <!-- BARRA INFERIOR: as 4 telas principais -->
+    <nav class="nav-baixo" id="navBaixo" aria-label="Telas">
+      <button type="button" data-ir="corridas"><span data-ic="corridas" data-tam="24"></span><span>Corridas</span></button>
+      <button type="button" data-ir="empresas"><span data-ic="empresas" data-tam="24"></span><span>Empresas</span></button>
+      <button type="button" data-ir="historico"><span data-ic="historico" data-tam="24"></span><span>Histórico</span></button>
+      <button type="button" data-ir="perfil"><span data-ic="perfil" data-tam="24"></span><span>Perfil</span></button>
+    </nav>
+
+    <!-- TELA DO RELATÓRIO (aparece ao tocar em "Fechar entregas") -->
+    <section class="stack" id="rel" hidden></section>
+
+    <!-- NOVO: MENU LATERAL. Fica dentro do <main>, então só existe depois do login.
+         A área da conta ("Conectado como... Sair da conta") agora mora aqui dentro
+         (o auth.js a preenche pelo id areaConta). -->
+    <div class="menu-fundo" id="menuFundo"></div>
+    <nav class="menu-painel" id="menuPainel" aria-label="Menu">
+      <b class="menu-marca">MotoGiro</b>
+      <section id="areaConta" aria-label="Conta"></section>
+      <div class="gav-itens">
+        <button class="menu-item" type="button" data-ir="corridas"><span data-ic="corridas" data-tam="22"></span><span>Corridas</span></button>
+        <button class="menu-item" type="button" data-ir="empresas"><span data-ic="empresas" data-tam="22"></span><span>Empresas</span></button>
+        <button class="menu-item" type="button" data-ir="historico"><span data-ic="historico" data-tam="22"></span><span>Histórico</span></button>
+        <button class="menu-item" type="button" data-ir="perfil"><span data-ic="perfil" data-tam="22"></span><span>Perfil</span></button>
+      </div>
+      <div id="areaSair" class="gav-pe"></div>
+    </nav>
+
+  </main>
+
+  <!-- Aviso ao apertar "voltar" no celular (o app.js mostra e esconde) -->
+  <div class="sair" id="sair" role="alertdialog" aria-modal="true" aria-labelledby="sairT" hidden>
+    <div class="sair-box">
+      <b id="sairT">Deseja realmente sair do aplicativo?</b>
+      <p class="hint" id="sairMsg"></p>
+      <div class="row">
+        <button class="b1" id="sairNao" type="button">Ficar</button>
+        <button class="b2" id="sairSim" type="button">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    A ORDEM IMPORTA:
+      (tema.js   já foi carregado lá no <head>: cria "tema")
+      parser.js  cria parseOrders()
+      storage.js cria "store" (onde os dados ficam guardados)
+      icones.js  cria "icones" (desenhos SVG)   <- NOVO
+      auth.js    cria "conta" (login) e a porta de entrada
+      menu.js    cria "menu" (menu lateral)
+      app.js     usa os de cima
+  -->
+  <script src="js/parser.js?v=6"></script>
+  <script src="js/storage.js?v=6"></script>
+  <script src="js/icones.js?v=6"></script>
+  <script src="js/auth.js?v=6"></script>
+  <script src="js/menu.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+</body>
+</html>
