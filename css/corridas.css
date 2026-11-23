@@ -344,3 +344,26 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .gav-sair { width: 100%; color: var(--ink-2); }
 /* Avatar da gaveta: cor de destaque (no Azul o do topo é branco e sumiria no fundo branco). */
 .gav-user .avatar { background: var(--accent); color: var(--accent-ink); }
+
+
+/* ------------------------------------------------------------
+   11. TELA DE LOGIN (porta) com o visual novo
+   Só vale dentro de .porta, então Empresas e as outras telas não mudam.
+   ------------------------------------------------------------ */
+.porta-box { gap: 24px; }
+.porta-logo { width: 84px; height: 84px; border-radius: 22px; margin: 0 auto 14px; display: block; box-shadow: var(--sombra); border: 1px solid var(--line); }
+.porta-marca h1 { font: 800 36px/1.05 var(--f-display); letter-spacing: -.03em; color: var(--ink); }
+.porta-marca .lead { color: var(--ink-2); font-size: 15px; }
+
+.porta .conta-box {
+  background: var(--surface); border: 1px solid var(--card-borda); box-shadow: var(--card-sombra), var(--sombra);
+  border-radius: var(--raio-g); padding: 22px 18px; gap: 14px;
+}
+.porta .conta-t { font: 700 22px/1.15 var(--f-display); text-transform: none; letter-spacing: -.01em; }
+.porta .lab { font: 600 13px/1.2 var(--f-body); text-transform: none; letter-spacing: 0; color: var(--ink-2); }
+.porta .in { min-height: 52px; border-radius: 14px; font-size: 16px; }
+.porta .in:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.porta .b1 { width: 100%; min-height: 54px; border-radius: 16px; font: 700 17px/1 var(--f-body); }
+.porta .b2 { width: 100%; min-height: 50px; border-radius: 16px; font: 600 16px/1 var(--f-body); }
+.porta .link { min-height: 44px; font: 600 15px/1 var(--f-body); text-decoration: none; color: var(--accent); }
+.porta .conta-lembrar { min-height: 40px; }

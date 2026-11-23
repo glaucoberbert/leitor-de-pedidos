@@ -296,7 +296,7 @@ var conta = (function () {
     if (mostraApp) { porta.innerHTML = ''; return; }
 
     porta.innerHTML = '<div class="porta-box">' +
-      '<div class="porta-marca"><h1>MotoGiro</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
+      '<div class="porta-marca"><img class="porta-logo" src="icons/icon.svg" alt="" width="84" height="84"><h1>MotoGiro</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
       formHTML() + '</div>';
 
     // Depois de redefinir a senha, o e-mail já vem preenchido na tela de entrar.
