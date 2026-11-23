@@ -3,7 +3,7 @@
   index.html  —  O "esqueleto" da página
   ------------------------------------------------------------
   HTML só descreve O QUE existe na tela. A aparência está em
-  css/style.css (e menu.css, conta.css, tema.css) e o comportamento em js/app.js.
+  css/style.css (e menu.css, conta.css, tema.css, corridas.css) e o comportamento em js/app.js.
 
   Várias partes aqui ficam vazias de propósito (turno, empresas, resumo,
   cards, relatório): o app.js preenche essas partes conforme os dados.
@@ -23,32 +23,33 @@
        então o link do Google Fonts foi removido e o app abre até sem internet. -->
 
   <!-- O número depois do "?v=" serve pra o celular baixar a versão nova (sobe a cada entrega) -->
-  <link rel="stylesheet" href="css/style.css?v=4">
-  <link rel="stylesheet" href="css/conta.css?v=4">
-  <link rel="stylesheet" href="css/menu.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/conta.css?v=5">
+  <link rel="stylesheet" href="css/menu.css?v=5">
   <!-- NOVO: temas (Noite, Dia, Azul). Vem por ÚLTIMO para sobrescrever as cores antigas -->
-  <link rel="stylesheet" href="css/tema.css?v=4">
+  <link rel="stylesheet" href="css/tema.css?v=5">
+  <!-- NOVO: visual da tela Corridas (topo, cartão do dia, cards). Vem depois do tema.css -->
+  <link rel="stylesheet" href="css/corridas.css?v=5">
 
   <!-- NOVO: liga o tema escolhido ANTES da tela aparecer (por isso fica aqui no <head>) -->
-  <script src="js/tema.js?v=4"></script>
+  <script src="js/tema.js?v=5"></script>
 </head>
 <body>
 
   <main class="wrap">
 
-    <!-- NOVO: o topo agora tem o botão do menu (3 barrinhas) ao lado do título -->
+    <!-- TOPO: botão do menu (3 barrinhas) + saudação + avatar com a inicial.
+         O app.js preenche a saudação ("Boa noite,"), o nome e a letra do avatar. -->
     <header class="topo">
       <button class="menu-btn" id="menuBtn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menuPainel">
         <span class="menu-ico" aria-hidden="true"><i></i><i></i><i></i></span>
       </button>
-      <div>
-        <h1>Leitor de Pedidos</h1>
-        <p class="lead">Cole as mensagens do WhatsApp. Cada pedido vira um card pronto pra colocar no Spoke.</p>
+      <div class="saud">
+        <span class="saud-1" id="saudTxt"></span>
+        <b class="saud-2" id="saudNome"></b>
       </div>
+      <div class="avatar" id="avatar" aria-hidden="true"><span id="avatarLetra"></span></div>
     </header>
-
-    <!-- Barra das entregas do dia: abrir, ver o andamento, fechar -->
-    <section class="turno" id="turno" aria-label="Entregas do dia"></section>
 
     <!-- Mensagens curtas de status (salvo, erro...) -->
     <p class="status" id="status" hidden></p>
@@ -56,91 +57,118 @@
     <!-- TELA PRINCIPAL (Corridas) -->
     <div class="stack" id="main">
 
-      <section class="paste" aria-label="Mensagens">
-        <!-- NOVO: aqui só se ESCOLHE a empresa da rota. Para mudar valor, mínimo ou criar/apagar, use a aba Empresas. -->
-        <div class="f">
-          <span class="lab">Empresa</span>
-          <div class="seg" id="empSel"></div>
-        </div>
+      <!-- Empresa da rota: um chip que abre uma listinha. Para mudar valor, mínimo ou
+           criar/apagar empresa, use a aba Empresas. -->
+      <div class="emp-wrap" id="empWrap">
+        <button class="emp-chip" id="empChip" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="empSel">
+          <span id="empNome"></span>
+          <span data-ic="baixo" data-tam="20"></span>
+        </button>
+        <div class="emp-pop" id="empSel" hidden></div>
+      </div>
 
-        <div class="paste-head">
-          <label class="lab" for="src">Mensagens coladas</label>
-          <span class="demo" id="demo">Exemplo com dados inventados</span>
-        </div>
+      <!-- CARTÃO DO DIA (entregas abertas / fechadas): o app.js desenha aqui dentro -->
+      <section class="turno" id="turno" aria-label="Entregas do dia"></section>
+
+      <!-- Botão grande de colar + botão "+" (pedido manual) -->
+      <div class="acoes">
+        <button class="b-colar" id="colarBtn" type="button">
+          <span data-ic="prancheta" data-tam="24"></span>
+          <span>Colar pedidos do WhatsApp</span>
+        </button>
+        <button class="b-mais" id="manualBtn" type="button" aria-label="Inserir pedido manualmente">
+          <span data-ic="mais" data-tam="28"></span>
+        </button>
+      </div>
+
+      <!-- Caixa de colar na mão: só aparece se o celular não deixar o botão ler a área de
+           transferência sozinho (o app.js abre e fecha). O id "src" continua o mesmo. -->
+      <section class="colar" id="colar" hidden aria-label="Colar mensagens">
+        <label class="colar-t" for="src">Cole aqui as mensagens do WhatsApp</label>
         <textarea id="src" spellcheck="false" placeholder="Cole aqui as mensagens do WhatsApp"></textarea>
         <div class="row">
           <button class="b1" id="run" type="button">Ler pedidos</button>
-          <button class="b2" id="clear" type="button">Limpar</button>
-        </div>
-
-        <!-- Pedido que não veio no padrão (ex.: print do iFood): preencher na mão -->
-        <button class="b2" id="manualBtn" type="button">Inserir dados manualmente</button>
-
-        <!-- Telinha de preenchimento manual (o app.js abre e fecha) -->
-        <div class="manual" id="manual" hidden>
-          <span class="lab">Novo pedido manual</span>
-
-          <div class="f">
-            <label class="lab" for="mNome">Nome</label>
-            <input class="in nm" id="mNome" autocomplete="off">
-          </div>
-          <div class="f">
-            <label class="lab" for="mBairro">Bairro</label>
-            <input class="in" id="mBairro" autocomplete="off">
-          </div>
-          <div class="f">
-            <label class="lab" for="mEnd">Endereço (rua e número)</label>
-            <input class="in ad" id="mEnd" placeholder="Rua X, 123" autocomplete="off">
-          </div>
-
-          <div class="f">
-            <span class="lab">Pagamento</span>
-            <div class="seg" id="mForma">
-              <button class="b2" type="button" data-mf="dinheiro" aria-pressed="false">Dinheiro</button>
-              <button class="b2" type="button" data-mf="cartao" aria-pressed="false">Cartão</button>
-              <button class="b2" type="button" data-mf="pix" aria-pressed="false">Pix</button>
-              <button class="b2" type="button" data-mf="pago" aria-pressed="false">Pago</button>
-            </div>
-          </div>
-          <div class="pay-in" id="mValores">
-            <div class="f">
-              <label class="lab" for="mValor">Valor (R$)</label>
-              <input class="in sm" id="mValor" inputmode="decimal" autocomplete="off">
-            </div>
-            <div class="f" id="mTrocoBox" hidden>
-              <label class="lab" for="mTroco">Troco pra (R$)</label>
-              <input class="in sm" id="mTroco" inputmode="decimal" placeholder="opcional" autocomplete="off">
-            </div>
-          </div>
-
-          <div class="f">
-            <label class="lab" for="mRefri">Refri</label>
-            <input class="in" id="mRefri" placeholder="sem refri" autocomplete="off">
-          </div>
-          <div class="f">
-            <label class="lab" for="mObs">Observação</label>
-            <input class="in" id="mObs" placeholder="sem observação" autocomplete="off">
-          </div>
-
-          <div class="notice warn" id="mErro" hidden></div>
-          <div class="row">
-            <button class="b1" id="mAdd" type="button">Adicionar pedido</button>
-            <button class="b2" id="mCancel" type="button">Cancelar</button>
-          </div>
+          <button class="b2" id="colarFechar" type="button">Fechar</button>
         </div>
       </section>
 
-      <section class="sum" id="sum" aria-label="Resumo da rota"></section>
+      <!-- Telinha de pedido manual (o app.js abre e fecha) -->
+      <div class="manual" id="manual" hidden>
+        <span class="lab">Novo pedido manual</span>
 
-      <div class="row">
+        <div class="f">
+          <label class="lab" for="mNome">Nome</label>
+          <input class="in nm" id="mNome" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mBairro">Bairro</label>
+          <input class="in" id="mBairro" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mEnd">Endereço (rua e número)</label>
+          <input class="in ad" id="mEnd" placeholder="Rua X, 123" autocomplete="off">
+        </div>
+
+        <div class="f">
+          <span class="lab">Pagamento</span>
+          <div class="seg" id="mForma">
+            <button class="b2" type="button" data-mf="dinheiro" aria-pressed="false">Dinheiro</button>
+            <button class="b2" type="button" data-mf="cartao" aria-pressed="false">Cartão</button>
+            <button class="b2" type="button" data-mf="pix" aria-pressed="false">Pix</button>
+            <button class="b2" type="button" data-mf="pago" aria-pressed="false">Pago</button>
+          </div>
+        </div>
+        <div class="pay-in" id="mValores">
+          <div class="f">
+            <label class="lab" for="mValor">Valor (R$)</label>
+            <input class="in sm" id="mValor" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="f" id="mTrocoBox" hidden>
+            <label class="lab" for="mTroco">Troco pra (R$)</label>
+            <input class="in sm" id="mTroco" inputmode="decimal" placeholder="opcional" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="f">
+          <label class="lab" for="mRefri">Refri</label>
+          <input class="in" id="mRefri" placeholder="sem refri" autocomplete="off">
+        </div>
+        <div class="f">
+          <label class="lab" for="mObs">Observação</label>
+          <input class="in" id="mObs" placeholder="sem observação" autocomplete="off">
+        </div>
+
+        <div class="notice warn" id="mErro" hidden></div>
+        <div class="row">
+          <button class="b1" id="mAdd" type="button">Adicionar pedido</button>
+          <button class="b2" id="mCancel" type="button">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- ROTA ATUAL: título, contagem e a lixeira (limpa a rota) -->
+      <div class="rota-h">
+        <div class="rota-tx">
+          <h2 class="rota-t">Rota atual</h2>
+          <p class="rota-sub" id="rotaSub"></p>
+          <span class="demo" id="demo" hidden>Exemplo com dados inventados</span>
+        </div>
+        <button class="icon-btn" id="clear" type="button" aria-label="Limpar a rota">
+          <span data-ic="lixeira" data-tam="22"></span>
+        </button>
+      </div>
+
+      <!-- Os cards dos pedidos (o app.js desenha) -->
+      <section class="list" id="list" aria-label="Pedidos"></section>
+      <p class="foot" id="foot" hidden></p>
+
+      <!-- Resumo e fechamento da rota -->
+      <section class="sum" id="sum" aria-label="Resumo da rota"></section>
+      <div class="row fim-acoes">
         <button class="b2" id="copyall" type="button" style="flex:1 1 auto">Copiar lista toda</button>
         <button class="b1" id="terminar" type="button">Terminar rota</button>
       </div>
       <p class="hint" id="hintfim" hidden></p>
       <div class="notes" id="fim"></div>
-
-      <section class="list" id="list" aria-label="Pedidos"></section>
-      <p class="foot" id="foot" hidden></p>
     </div>
 
     <!-- NOVO: ABA EMPRESAS. Os campos são os mesmos que ficavam na tela principal
@@ -215,11 +243,11 @@
       menu.js    cria "menu" (menu lateral)
       app.js     usa os de cima
   -->
-  <script src="js/parser.js?v=4"></script>
-  <script src="js/storage.js?v=4"></script>
-  <script src="js/icones.js?v=4"></script>
-  <script src="js/auth.js?v=4"></script>
-  <script src="js/menu.js?v=4"></script>
-  <script src="js/app.js?v=4"></script>
+  <script src="js/parser.js?v=5"></script>
+  <script src="js/storage.js?v=5"></script>
+  <script src="js/icones.js?v=5"></script>
+  <script src="js/auth.js?v=5"></script>
+  <script src="js/menu.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
 </body>
 </html>

@@ -33,6 +33,7 @@ var icones = (function () {
     fechar:    '<path d="M6 6l12 12M18 6 6 18"/>',
     check:     '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     baixo:     '<path d="m6 9 6 6 6-6"/>',
+    alerta:    '<path d="M12 4 3 19.5h18Z"/><path d="M12 10v4M12 17h.01"/>',
 
     // --- chips dos pedidos ---
     cartao:    '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18M7 15h3"/>',

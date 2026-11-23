@@ -65,6 +65,36 @@
   --chip-ink: #F2F4F5;          /* texto dos chips */
   --overlay: rgba(0, 0, 0, .6); /* fundo escurecido atrás de menu/avisos */
   --sombra: 0 6px 20px rgba(0, 0, 0, .35);
+
+  /* --- Topo (saudação, botão do menu, avatar, chip da empresa) --- */
+  --banda: transparent;               /* faixa colorida atrás do topo (só o tema Azul usa) */
+  --topo-ink: #F2F4F5;                /* nome e ícones do topo */
+  --topo-suave: #A3ADB6;              /* "Boa noite," */
+  --topo-btn: #1A2129;                /* fundo do botão do menu */
+  --topo-btn-borda: #242D37;
+  --topo-chip-bg: #1A2129;            /* chip da empresa */
+  --topo-chip-borda: #242D37;
+  --av-bg: #FFB400;                   /* avatar */
+  --av-ink: #14110A;
+
+  /* --- Cartão do dia ("R$ 48,00") --- */
+  --dia-bg: #FFB400;
+  --dia-ink: #14110A;                 /* textos principais do cartão */
+  --dia-suave: #14110A;               /* etiqueta e frase do mínimo */
+  --dia-valor: #14110A;               /* o valor grande */
+  --dia-barra: #14110A;               /* barra do mínimo (parte cheia) */
+  --dia-trilho: rgba(20, 17, 10, .28);/* barra do mínimo (parte vazia) */
+  --dia-btn-bg: #14110A;              /* botões dentro do cartão */
+  --dia-btn-ink: #FFB400;
+  --dia-sombra: none;
+
+  /* --- Botões da tela Corridas e cards --- */
+  --colar-bg: #F2F4F5;                /* botão "Colar pedidos do WhatsApp" */
+  --colar-ink: #0E1216;
+  --mais: #F2F4F5;                    /* botão "+" (contorno) */
+  --bola: #6E7882;                    /* bolinha de "entregue" */
+  --card-borda: #242D37;
+  --card-sombra: none;
 }
 
 
@@ -92,6 +122,33 @@
   --chip-ink: #0B5A42;
   --overlay: rgba(10, 20, 15, .45);
   --sombra: 0 6px 20px rgba(20, 32, 27, .10);
+
+  --banda: transparent;
+  --topo-ink: #14201B;
+  --topo-suave: #5B6660;
+  --topo-btn: #FFFFFF;
+  --topo-btn-borda: transparent;
+  --topo-chip-bg: #FFFFFF;
+  --topo-chip-borda: transparent;
+  --av-bg: #0F7B5A;
+  --av-ink: #FFFFFF;
+
+  --dia-bg: #0F7B5A;
+  --dia-ink: #FFFFFF;
+  --dia-suave: #FFFFFF;
+  --dia-valor: #FFFFFF;
+  --dia-barra: #FFFFFF;
+  --dia-trilho: rgba(0, 0, 0, .28);
+  --dia-btn-bg: #FFFFFF;
+  --dia-btn-ink: #0B5A42;
+  --dia-sombra: 0 10px 24px rgba(15, 123, 90, .28);
+
+  --colar-bg: #14201B;
+  --colar-ink: #FFFFFF;
+  --mais: #14201B;
+  --bola: #8A948F;
+  --card-borda: transparent;
+  --card-sombra: 0 1px 3px rgba(20, 32, 27, .08);
 }
 
 
@@ -119,6 +176,33 @@
   --chip-ink: #1B3FB3;
   --overlay: rgba(10, 18, 48, .45);
   --sombra: 0 6px 20px rgba(31, 79, 224, .12);
+
+  --banda: #1F4FE0;                   /* faixa azul atrás do topo */
+  --topo-ink: #FFFFFF;
+  --topo-suave: #E8EEFF;
+  --topo-btn: rgba(255, 255, 255, .14);
+  --topo-btn-borda: transparent;
+  --topo-chip-bg: rgba(255, 255, 255, .14);
+  --topo-chip-borda: transparent;
+  --av-bg: #FFFFFF;
+  --av-ink: #1F4FE0;
+
+  --dia-bg: #FFFFFF;
+  --dia-ink: #111A33;
+  --dia-suave: #586282;
+  --dia-valor: #1F4FE0;
+  --dia-barra: #1F4FE0;
+  --dia-trilho: #E3E9FB;
+  --dia-btn-bg: #1F4FE0;
+  --dia-btn-ink: #FFFFFF;
+  --dia-sombra: 0 10px 28px rgba(31, 79, 224, .18);
+
+  --colar-bg: #1F4FE0;
+  --colar-ink: #FFFFFF;
+  --mais: #1F4FE0;
+  --bola: #7C86A3;
+  --card-borda: transparent;
+  --card-sombra: 0 1px 3px rgba(31, 79, 224, .10);
 }
 
 

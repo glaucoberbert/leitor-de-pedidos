@@ -12,6 +12,8 @@
      8. Copiar
      9. Eventos (cliques, digitação)
     10. Início
+   (Parte 1 do visual novo: topo, chip da empresa, cartão do dia,
+    botão de colar e cards em formato resumido — procure por "NOVO")
    ============================================================ */
 
 (function () {
@@ -90,7 +92,9 @@
     apagar: null,      // id da rota esperando confirmação de apagar
     descartar: null,   // ação esperando você confirmar que pode descartar a rota
     erroSalvar: false, // o último salvamento falhou?
-    delSvc: null       // apagar serviço: { id, step } (step 1 = 1ª pergunta, step 2 = "tem certeza?")
+    delSvc: null,      // apagar serviço: { id, step } (step 1 = 1ª pergunta, step 2 = "tem certeza?")
+    diaAberto: false,  // NOVO: cartão do dia com a lista de rotas aberta?
+    empAberto: false   // NOVO: listinha de empresas (chip) aberta?
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -115,6 +119,9 @@
     if (n == null) return '';
     return 'R$' + (Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
   }
+  // NOVO — 48 -> "R$ 48,00"  (sempre com 2 casas e espaço; usado no cartão do dia e nos chips)
+  function moneyBR(n) { return 'R$ ' + (n || 0).toFixed(2).replace('.', ','); }
+
   // 6.5 -> "6,5"  (para mostrar dentro dos campos)
   function fmtNum(n) { return String(n == null ? '' : n).replace('.', ','); }
 
@@ -156,6 +163,38 @@
   // Igual, mas nunca devolve null: se não achar, usa o primeiro serviço.
   function svc(id) { return svcFind(id) || S.servicos[0]; }
 
+  // NOVO — "Bom dia," / "Boa tarde," / "Boa noite," conforme a hora do celular.
+  function saudacao() {
+    var h = new Date().getHours();
+    return h < 5 ? 'Boa noite,' : h < 12 ? 'Bom dia,' : h < 18 ? 'Boa tarde,' : 'Boa noite,';
+  }
+
+  // NOVO — Primeiro nome de quem está logado ("Glauco Roberto" -> "Glauco").
+  // Sem nome cadastrado, usa a parte do e-mail antes do @. Sem login, devolve vazio.
+  function primeiroNome() {
+    var u = (window.conta && conta.usuario) ? conta.usuario() : null;
+    var nome = u ? String(u.nome || '').trim() : '';
+    if (!nome && u && u.email) nome = String(u.email).split('@')[0];
+    return nome ? nome.split(/\s+/)[0] : '';
+  }
+
+  // NOVO — Preenche o topo: saudação, nome e a letra do avatar.
+  function renderTopo() {
+    var nome = primeiroNome();
+    $('saudTxt').textContent = nome ? saudacao() : 'Olá,';
+    $('saudNome').textContent = nome || 'motoboy';
+    $('avatarLetra').textContent = (nome || 'M').charAt(0).toUpperCase();
+  }
+
+  // NOVO — Os ícones do index.html são marcados com data-ic="nome" (e data-tam="tamanho").
+  // Aqui o desenho SVG (js/icones.js) é colocado dentro de cada marca.
+  function preencherIcones() {
+    var els = document.querySelectorAll('[data-ic]');
+    for (var k = 0; k < els.length; k++) {
+      els[k].innerHTML = icones.svg(els[k].getAttribute('data-ic'), +els[k].getAttribute('data-tam') || 24);
+    }
+  }
+
   // Mensagem curta de status. kind: 'ok' (some sozinha), 'warn' ou 'info'.
   var statusTimer = null;
   function setStatus(msg, kind) {
@@ -179,13 +218,6 @@
     return o.pay.kind === 'unknown' || o.pay.kind === 'none'
         || (o.pay.kind !== 'pago' && o.pay.amount == null)   // vai receber, mas falta o valor
         || (!hasNum(o) && !o.semEnd) || !o.name.trim() || !!o.warn;
-  }
-
-  // Etiqueta do topo do card: Entregue (verde) / Conferir (laranja) / Pronto (verde).
-  function chipInfo(o) {
-    if (o.feito) return { cls: 'ok', txt: 'Entregue' };
-    if (pending(o)) return { cls: 'warn', txt: 'Conferir' };
-    return { cls: 'ok', txt: 'Pronto' };
   }
 
   function nameText(o) {
@@ -266,8 +298,7 @@
     var o = S.orders[i];
     var x = $('payx-' + i); if (x) x.innerHTML = payxHTML(o);
     setPayCopy(i);
-    var chip = chipInfo(o), c = $('chip-' + i);
-    if (c) { c.className = 'chip ' + chip.cls; c.textContent = chip.txt; }
+    patchResumo(i);                                    // NOVO: o chip do pagamento acompanha o que você digita
     updateSummary();
   }
 
@@ -290,21 +321,57 @@
   // Texto do botão "Entregue" conforme o estado.
   function feitoLabel(o) { return o.feito ? 'Entregue' : 'Marcar entregue'; }
 
-  // Desenho da setinha (aponta pra baixo; o CSS gira quando o card está fechado).
-  var CHEV = '<svg class="chev" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // NOVO — Chip do pagamento (ícone + texto), no estilo do mockup.
+  //   com valor:  "R$ 32,00 · dinheiro" | sem valor: "Cartão na entrega"
+  function payChip(o) {
+    var p = o.pay, k = p.kind;
+    var valor = p.amount != null ? moneyBR(p.amount) : '';
+    if (k === 'pago')     return { ic: 'check',    txt: 'Pago' + (p.via ? ' · ' + p.via : '') };
+    if (k === 'dinheiro') return { ic: 'dinheiro', txt: valor ? valor + ' · dinheiro' : 'Dinheiro na entrega' };
+    if (k === 'cartao')   return { ic: 'cartao',   txt: valor ? valor + ' · cartão' : 'Cartão na entrega' };
+    if (k === 'pix')      return { ic: 'pix',      txt: valor ? valor + ' · Pix' : 'Pix' };
+    // Veio sem forma de pagamento clara: avisa pra confirmar.
+    return { ic: 'alerta', txt: valor ? valor + ' · confirmar forma' : 'Confirmar pagamento', warn: true };
+  }
+
+  // NOVO — Um chip pronto. "cls": '' (normal), 'w' (âmbar: refri) ou 'w2' (contorno âmbar: conferir).
+  function chipHTML(ic, txt, cls) {
+    return '<span class="chp' + (cls ? ' ' + cls : '') + '">' + icones.svg(ic, 18) + '<span>' + esc(txt) + '</span></span>';
+  }
+
+  // NOVO — O resumo do card (o que aparece com o card FECHADO), como no mockup:
+  //   ( ) Nome · Bairro
+  //       Rua, número
+  //       [pagamento] [refri] [conferir]
+  // A bolinha marca "entregue". Tocar no texto abre o card pra editar.
+  function resumoHTML(o) {
+    var pc = payChip(o);
+    var chips = chipHTML(pc.ic, pc.txt, pc.warn ? 'w' : '');
+    if (o.refriText && o.refriText.trim()) chips += chipHTML('refri', o.refriText.trim(), 'w');
+    if (pending(o) && !o.feito && !pc.warn) chips += chipHTML('alerta', 'Conferir', 'w2');   // pendência que não é o pagamento
+
+    var nome = o.name.trim() || 'Sem nome', bairro = o.bairro.trim();
+    var end = o.addr.trim() || 'Sem endereço';
+    return '<button class="bola" type="button" role="checkbox" data-act="feito-sw" aria-checked="' + (o.feito ? 'true' : 'false') + '" aria-label="Entregue">' + icones.svg('check', 20) + '</button>' +
+      '<button class="info" type="button" data-act="toggle" aria-expanded="' + (o.aberto ? 'true' : 'false') + '" aria-label="Abrir ou fechar os detalhes deste pedido">' +
+        '<span class="l1"><b>' + esc(nome) + '</b>' + (bairro ? '<span class="bai"> · ' + esc(bairro) + '</span>' : '') + '</span>' +
+        '<span class="l2">' + esc(end) + '</span>' +
+        '<span class="chips">' + chips + '</span>' +
+      '</button>';
+  }
+
+  // NOVO — Atualiza só o resumo do card (sem mexer nos campos, pra não tirar o cursor de onde você está).
+  function patchResumo(i) {
+    var o = S.orders[i];
+    var r = list.querySelector('.card[data-i="' + i + '"] .resumo');
+    if (o && r) r.innerHTML = resumoHTML(o);
+  }
 
   function cardHTML(o, i) {
-    var chip = chipInfo(o);
-    var when = (o.date + ' ' + o.time).trim() || 'sem data';
-    return '<article class="card' + (o.feito ? ' done' : '') + (o.fechado ? ' fechado' : '') + '" data-i="' + i + '">' +
-      // Topo: setinha (abre/fecha o card) + nome (só aparece com o card fechado) + etiqueta + chave "Entregue".
-      '<header class="meta">' +
-        '<button class="hd" type="button" data-act="toggle" aria-expanded="' + (o.fechado ? 'false' : 'true') + '" aria-label="Abrir ou fechar este pedido">' +
-          CHEV + '<span class="idx">#' + (i + 1) + '</span><span class="when">' + esc(when) + '</span>' +
-          '<b class="hname" id="hname-' + i + '">' + esc(o.name.trim() || 'Sem nome') + '</b></button>' +
-        '<span class="chip ' + chip.cls + '" id="chip-' + i + '">' + chip.txt + '</span>' +
-        '<button class="sw" type="button" role="switch" data-act="feito-sw" aria-checked="' + (o.feito ? 'true' : 'false') + '" aria-label="Entregue"><span class="sw-knob"></span></button>' +
-      '</header>' +
+    return '<article class="card' + (o.feito ? ' done' : '') + (o.aberto ? ' aberto' : '') + '" data-i="' + i + '">' +
+      // Resumo (sempre visível): bolinha + nome · bairro + endereço + chips.
+      '<div class="resumo">' + resumoHTML(o) + '</div>' +
+      // Corpo (só aparece com o card aberto): todos os campos para editar.
       '<div class="body">' +
 
         // Entregue + valor desta entrega
@@ -349,28 +416,21 @@
     var o = S.orders[i];
     var card = list.querySelector('.card[data-i="' + i + '"]');
     if (!card) return;
-    var chip = chipInfo(o);
-    var c = $('chip-' + i);
-    if (c) { c.className = 'chip ' + chip.cls; c.textContent = chip.txt; }
     card.classList.toggle('done', !!o.feito);
-    card.classList.toggle('fechado', !!o.fechado);
+    card.classList.toggle('aberto', !!o.aberto);       // NOVO: aberto = mostra os campos para editar
     var b = card.querySelector('[data-act="feito"]');
     if (b) { b.setAttribute('aria-pressed', o.feito ? 'true' : 'false'); b.textContent = feitoLabel(o); }
-    var sw = card.querySelector('[data-act="feito-sw"]');                  // a chave do topo
-    if (sw) sw.setAttribute('aria-checked', o.feito ? 'true' : 'false');
-    var tg = card.querySelector('[data-act="toggle"]');
-    if (tg) tg.setAttribute('aria-expanded', o.fechado ? 'false' : 'true');
-    var hn = $('hname-' + i); if (hn) hn.textContent = o.name.trim() || 'Sem nome';
     var a = $('anote-' + i); if (a) a.innerHTML = addrNote(o);
     var n = $('nnote-' + i); if (n) n.innerHTML = nameNote(o);
     var p = $('pay-' + i); if (p) p.innerHTML = payHTML(o, i);
     setPayCopy(i);
+    patchResumo(i);                                    // NOVO: o resumo acompanha o que você edita
     updateSummary();
   }
 
   function renderList() {
     if (!S.orders.length) {
-      list.innerHTML = '<div class="empty">Nenhum pedido na tela. Cole as mensagens da rota e toque em Ler pedidos.</div>';
+      list.innerHTML = '<div class="empty">Nenhum pedido na rota. Toque em «Colar pedidos do WhatsApp».</div>';
     } else {
       list.innerHTML = S.orders.map(cardHTML).join('');
     }
@@ -403,12 +463,15 @@
     if (pix > 0) h += '<div><span class="lab">Pix</span><b>' + esc(money(r2(pix))) + '</b></div>';
     $('sum').innerHTML = h;
 
+    // NOVO: frase embaixo de "Rota atual" — "3 para entregar · 1 entregue"
+    $('rotaSub').textContent = n ? (n - feitos) + ' para entregar · ' + feitos + (feitos === 1 ? ' entregue' : ' entregues') : 'Nenhum pedido ainda';
+
     $('copyall').disabled = !n;
     var hint = $('hintfim'), btn = $('terminar');
     var podeTerminar = ui.pronto && !!S.turno && !S.demo && n > 0;
     btn.disabled = !podeTerminar;
     if (S.demo && n) { hint.hidden = false; hint.textContent = 'Isto é um exemplo. Cole suas mensagens pra começar.'; }
-    else if (!S.turno && n) { hint.hidden = false; hint.textContent = 'Abra as entregas (lá em cima) pra poder terminar a rota.'; }
+    else if (!S.turno && n) { hint.hidden = false; hint.textContent = 'Abra as entregas no cartão do dia pra poder terminar a rota.'; }
     else hint.hidden = true;
   }
 
@@ -446,6 +509,14 @@
     $('empSel').innerHTML = S.servicos.map(function (s) {
       return '<button class="b2" type="button" data-es="' + esc(s.id) + '" aria-pressed="' + (s.id === S.servicoId ? 'true' : 'false') + '">' + esc(s.nome) + '</button>';
     }).join('');
+    $('empNome').textContent = svc(S.servicoId).nome;   // NOVO: nome da empresa escolhida, no chip
+    renderEmpPop();
+  }
+
+  // NOVO — Mostra ou esconde a listinha de empresas do chip.
+  function renderEmpPop() {
+    $('empSel').hidden = !ui.empAberto;
+    $('empChip').setAttribute('aria-expanded', ui.empAberto ? 'true' : 'false');
   }
 
   // Quando o valor padrão muda, os cards que você NÃO alterou na mão acompanham.
@@ -521,38 +592,63 @@
     return { n: n, g: r2(g), comp: r2(comp), total: r2(g + comp), din: r2(din), car: r2(car), pix: r2(pix) };
   }
 
+  // NOVO — O CARTÃO DO DIA (o grande, no topo da tela Corridas).
+  //   Fechado: "Fechadas" + botão Abrir entregas.
+  //   Aberto:  "Hoje · desde 11:17", valor ganho, "8 corridas · 2 rotas" e a barra do mínimo
+  //            garantido da empresa escolhida. A setinha no canto abre a lista de rotas
+  //            (com "Apagar rota") e o botão "Fechar entregas".
   function renderTurno() {
     var el = $('turno');
-    if (!ui.pronto) { el.innerHTML = '<div class="turno-box"><span class="lab">Entregas</span><p class="hint">Carregando seus dados…</p></div>'; return; }
+    if (!ui.pronto) { el.innerHTML = '<div class="dia"><span class="dia-l">Entregas do dia</span><p class="dia-s">Carregando seus dados…</p></div>'; return; }
 
     if (!S.turno) {
-      el.innerHTML = '<div class="turno-box">' +
-        '<span class="lab">Entregas do dia</span><b class="turno-t">Fechadas</b>' +
-        '<p class="hint">Abra as entregas pra contar as corridas e gerar o relatório do dia.</p>' +
-        '<button class="b1" type="button" data-t="abrir">Abrir entregas</button></div>';
+      el.innerHTML = '<div class="dia">' +
+        '<span class="dia-l">Entregas do dia</span><b class="dia-t">Fechadas</b>' +
+        '<p class="dia-s">Abra as entregas pra contar as corridas e gerar o relatório do dia.</p>' +
+        '<button class="dia-btn" type="button" data-t="abrir">Abrir entregas</button></div>';
       return;
     }
 
     var t = S.turno, tt = totais(t);
-    var rotas = t.rotas.map(function (r, i) {
-      var tot = r2(r.entregas.reduce(function (a, d) { return a + (d.valor || 0); }, 0));
-      var linha = '<span class="n">Rota ' + (i + 1) + ' · ' + esc(r.servicoNome) + '</span>' +
-                  '<span class="sub">' + plural(r.entregas.length, 'entrega', 'entregas') + ' · ' + money(tot) + ' · ' + hhmm(r.fimEm) + '</span>';
-      var acao = ui.apagar === r.id
-        ? '<span class="row"><button class="link" type="button" data-t="apagar-sim" data-r="' + r.id + '">Apagar de vez</button><button class="link" type="button" data-t="apagar-nao">Cancelar</button></span>'
-        : '<button class="link" type="button" data-t="apagar" data-r="' + r.id + '">Apagar rota</button>';
-      return '<li><div class="rl">' + linha + '</div>' + acao + '</li>';
-    }).join('');
+    var quando = diaSeNaoHoje(t.abertoEm)
+      ? 'Desde ' + diaSeNaoHoje(t.abertoEm) + hhmm(t.abertoEm)     // aberto em outro dia: "Desde 26/10 às 11:17"
+      : 'Hoje · desde ' + hhmm(t.abertoEm);                         // aberto hoje: "Hoje · desde 11:17"
 
-    el.innerHTML = '<div class="turno-box open">' +
-      '<span class="lab">Entregas abertas desde ' + diaSeNaoHoje(t.abertoEm) + hhmm(t.abertoEm) + '</span>' +
-      '<div class="turno-nums">' +
-        '<div><span class="lab">Corridas</span><b>' + tt.n + '</b></div>' +
-        '<div><span class="lab">Ganho</span><b>' + esc(money(tt.g) || 'R$0') + '</b></div>' +
-        '<div><span class="lab">Rotas</span><b>' + t.rotas.length + '</b></div>' +
-      '</div>' +
-      (rotas ? '<ul class="rotas">' + rotas + '</ul>' : '<p class="hint">Nenhuma rota terminada ainda.</p>') +
-      '<button class="b1" type="button" data-t="fechar">Fechar entregas</button></div>';
+    // Barra do mínimo garantido (só se a empresa escolhida tem mínimo).
+    var sv = svc(S.servicoId), barra = '';
+    if (sv.minimo > 0) {
+      var feito = 0;
+      agrupar(t).forEach(function (g) { if (g.id === sv.id) feito = somaValor(g.entregas); });
+      var pct = Math.max(0, Math.min(100, Math.round(feito / sv.minimo * 100)));
+      barra = '<div class="dia-barra" role="progressbar" aria-label="Mínimo garantido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>' +
+        '<span class="dia-m">' + (feito >= sv.minimo
+          ? 'Mínimo de ' + moneyBR(sv.minimo) + ' garantido'
+          : 'Faltam ' + moneyBR(r2(sv.minimo - feito)) + ' para o mínimo de ' + moneyBR(sv.minimo)) + '</span>';
+    }
+
+    // Lista de rotas já terminadas (com "Apagar rota") + botão Fechar entregas.
+    var detalhes = '';
+    if (ui.diaAberto) {
+      var rotas = t.rotas.map(function (r, i) {
+        var tot = r2(r.entregas.reduce(function (a, d) { return a + (d.valor || 0); }, 0));
+        var linha = '<span class="n">Rota ' + (i + 1) + ' · ' + esc(r.servicoNome) + '</span>' +
+                    '<span class="sub">' + plural(r.entregas.length, 'entrega', 'entregas') + ' · ' + money(tot) + ' · ' + hhmm(r.fimEm) + '</span>';
+        var acao = ui.apagar === r.id
+          ? '<span class="row"><button class="link" type="button" data-t="apagar-sim" data-r="' + r.id + '">Apagar de vez</button><button class="link" type="button" data-t="apagar-nao">Cancelar</button></span>'
+          : '<button class="link" type="button" data-t="apagar" data-r="' + r.id + '">Apagar rota</button>';
+        return '<li><div class="rl">' + linha + '</div>' + acao + '</li>';
+      }).join('');
+      detalhes = '<div class="dia-det">' +
+        (rotas ? '<ul class="rotas">' + rotas + '</ul>' : '<p class="dia-s">Nenhuma rota terminada ainda.</p>') +
+        '<button class="dia-btn" type="button" data-t="fechar">Fechar entregas</button></div>';
+    }
+
+    el.innerHTML = '<div class="dia">' +
+      '<button class="dia-seta' + (ui.diaAberto ? ' on' : '') + '" type="button" data-t="detalhes" aria-expanded="' + (ui.diaAberto ? 'true' : 'false') + '" aria-label="Ver as rotas do dia e fechar as entregas">' + icones.svg('baixo', 22) + '</button>' +
+      '<span class="dia-l">' + quando + '</span>' +
+      '<b class="dia-valor">' + esc(moneyBR(tt.g)) + '</b>' +
+      '<span class="dia-s">' + plural(tt.n, 'corrida', 'corridas') + ' · ' + plural(t.rotas.length, 'rota', 'rotas') + '</span>' +
+      barra + detalhes + '</div>';
   }
 
 
@@ -560,7 +656,11 @@
      5. TERMINAR ROTA
      ---------------------------------------------------------- */
 
-  function showFim(html) { $('fim').innerHTML = html; }
+  // NOVO: depois de mostrar o aviso, rola a tela até ele (a lista de cards agora é comprida).
+  function showFim(html) {
+    $('fim').innerHTML = html;
+    try { $('fim').scrollIntoView({ block: 'center' }); } catch (e) {}
+  }
   function clearFim() { $('fim').innerHTML = ''; }
 
   // Ação do botão "Terminar rota": decide se salva direto ou se pergunta antes.
@@ -641,6 +741,7 @@
     S.orders = ordenarPorNome(lerPedidos(S.texto).concat(manuais));
     clearFim();
     $('demo').hidden = true;
+    abrirColar(false);                    // NOVO: terminou de ler: fecha a caixa de colar
     renderList(); updateSummary();
     queueSave();
   }
@@ -927,6 +1028,8 @@
     $('turno').hidden = ui.view !== 'main';
     $('rel').hidden = ui.view !== 'rel';
         $('emp').hidden = ui.view !== 'emp';   // NOVO: a aba Empresas só aparece quando é a tela atual
+    document.body.setAttribute('data-view', ui.view);   // NOVO: o CSS usa isso (faixa do tema Azul)
+    renderTopo();                                        // NOVO: saudação, nome e avatar
     // NOVO: marca no menu qual é a tela atual
     var itensMenu = document.querySelectorAll('[data-ir]');
     for (var im = 0; im < itensMenu.length; im++) {
@@ -959,7 +1062,7 @@
       S.orders = ordenarPorNome(S.orders);
       renderList(); updateSummary(); queueSave();
     }
-    else if (act === 'toggle') { o.fechado = !o.fechado; patchCard(i); queueSave(); }
+    else if (act === 'toggle') { o.aberto = !o.aberto; patchCard(i); queueSave(); }   // NOVO: aberto = mostra os campos
     else if (act === 'copy-refri') copyText(o.refriText.trim(), b, card.querySelector('[data-f="refriText"]'));
     else if (act === 'copy-obs') copyText(o.obsText.trim(), b, card.querySelector('[data-f="obsText"]'));
     else if (act === 'copy-pay') copyText(payCopy(o), b, null);          // "R$48 - Dinheiro"
@@ -996,6 +1099,7 @@
       o.pay.trocoPara = n2 > 0 ? n2 : null;
       patchPayx(i);
     }
+    patchResumo(i);          // NOVO: o resumo do card (nome, bairro, refri...) acompanha o que você digita
     queueSave();
   });
 
@@ -1011,12 +1115,24 @@
     queueSave();
   });
 
-  // NOVO: escolher a empresa na tela principal (os botões do seletor "Empresa").
+  // NOVO: o chip da empresa abre e fecha a listinha; tocar fora dela também fecha.
+  $('empChip').addEventListener('click', function (e) {
+    e.stopPropagation();
+    ui.empAberto = !ui.empAberto;
+    renderEmpPop();
+  });
+  document.addEventListener('click', function () {
+    if (ui.empAberto) { ui.empAberto = false; renderEmpPop(); }
+  });
+
+  // NOVO: escolher a empresa na tela principal (os botões da listinha do chip).
   $('empSel').addEventListener('click', function (e) {
     var b = e.target.closest('[data-es]');
     if (!b) return;
+    ui.empAberto = false;
     S.servicoId = b.getAttribute('data-es');
     renderServicos();
+    renderTurno();                  // NOVO: a barra do mínimo do cartão do dia é da empresa escolhida
     aplicarValorPadrao();
     queueSave();
   });
@@ -1074,6 +1190,33 @@
     }
     renderServicos();
   });
+
+  // --- NOVO: botão "Colar pedidos do WhatsApp" ---
+  // Abre (true) ou fecha (false) a caixa de colar na mão.
+  function abrirColar(abrir) {
+    $('colar').hidden = !abrir;
+    if (abrir) { ta.focus(); try { $('colar').scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+  }
+
+  // Tenta ler direto da área de transferência (o celular pode pedir permissão na 1ª vez).
+  // Se não deixar, ou se não tiver nada, abre a caixa pra você colar na mão.
+  $('colarBtn').addEventListener('click', function () {
+    if (!ui.pronto) return;
+    if (!(navigator.clipboard && navigator.clipboard.readText)) { abrirColar(true); return; }
+    navigator.clipboard.readText().then(function (txt) {
+      if (!txt || !txt.trim()) { abrirColar(true); return; }
+      ta.value = txt;
+      // Texto que não parece pedido (ex.: um link): não apaga a rota atual, só mostra pra você conferir.
+      if (!parseOrders(txt).orders.length) {
+        abrirColar(true);
+        setStatus('Não encontrei pedidos no que você copiou. Confira o texto abaixo.', 'warn');
+        return;
+      }
+      S.texto = txt;
+      seguroDescartar(lerDaCaixa, true);
+    }, function () { abrirColar(true); });
+  });
+  $('colarFechar').addEventListener('click', function () { abrirColar(false); });
 
   // --- Caixa de texto e botões da rota ---
   $('run').addEventListener('click', function () { seguroDescartar(lerDaCaixa, true); });
@@ -1236,6 +1379,7 @@
       S.turno = { id: uid(), abertoEm: new Date().toISOString(), adiantamento: null, rotas: [] };
       renderTurno(); updateSummary(); queueSave();
     }
+    else if (a === 'detalhes') { ui.diaAberto = !ui.diaAberto; renderTurno(); }      // NOVO: setinha do cartão do dia
     else if (a === 'fechar') { ui.view = 'rel'; renderAll(); window.scrollTo(0, 0); }
     else if (a === 'apagar') { ui.apagar = b.getAttribute('data-r'); renderTurno(); }
     else if (a === 'apagar-nao') { ui.apagar = null; renderTurno(); }
@@ -1288,6 +1432,15 @@
      1) Mostra o exemplo na hora (a página nunca fica em branco).
      2) Em seguida carrega o que estava salvo e redesenha.
      ---------------------------------------------------------- */
+
+  preencherIcones();                         // NOVO: coloca os ícones SVG nos botões do index.html
+
+  // NOVO: o app.js carrega antes do login; quando o app aparece (depois de entrar), refaz a saudação.
+  var mainEl = document.querySelector('main');
+  if (window.MutationObserver && mainEl) {
+    new MutationObserver(function () { if (!mainEl.hidden) renderTopo(); })
+      .observe(mainEl, { attributes: true, attributeFilter: ['hidden'] });
+  }
 
   ta.value = SAMPLE;
   ta.disabled = true;                        // trava a caixa até terminar de carregar
