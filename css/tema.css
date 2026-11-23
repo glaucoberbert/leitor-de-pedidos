@@ -1,0 +1,166 @@
+/* ============================================================
+   tema.css  —  Temas de cor, fonte Inter e base do novo visual
+   ------------------------------------------------------------
+   Este arquivo é carregado POR ÚLTIMO no index.html. Como o CSS
+   "mais novo" ganha quando dois valores brigam, tudo o que está
+   aqui sobrescreve as cores antigas do style.css — sem precisar
+   mexer nele.
+
+   Temas (quem escolhe é o js/tema.js, pondo data-tema="..." na
+   tag <html>):
+     noite  → padrão (escuro, destaque amarelo)
+     dia    → claro, destaque verde
+     azul   → claro, destaque azul
+     auto   → não existe aqui: o tema.js troca por "noite" ou "dia"
+              conforme o modo escuro/claro do celular.
+
+   Organização:
+     1. Fonte Inter (hospedada em /fonts, abre até sem internet)
+     2. Tema NOITE (também é o padrão se o JavaScript falhar)
+     3. Tema DIA
+     4. Tema AZUL
+     5. Ajustes de tipografia e ícones
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   1. FONTE INTER
+   Cada @font-face é um "peso" (400 normal, 500 médio, 600 seminegrito,
+   700 negrito). font-display: swap = mostra o texto na hora com a
+   fonte do sistema e troca pela Inter assim que ela carregar.
+   ------------------------------------------------------------ */
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("../fonts/inter-400.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: swap; src: url("../fonts/inter-500.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("../fonts/inter-600.woff") format("woff"); }
+@font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: swap; src: url("../fonts/inter-700.woff") format("woff"); }
+
+
+/* ------------------------------------------------------------
+   2. TEMA NOITE (padrão)
+   As variáveis com nomes antigos (--bg, --surface, --ink...) são as
+   mesmas do style.css, por isso o app inteiro já muda de cor.
+   As variáveis NOVAS (--nav, --chip, --raio...) serão usadas pelas
+   telas redesenhadas nas próximas etapas.
+   ------------------------------------------------------------ */
+:root,
+:root[data-tema="noite"] {
+  color-scheme: dark;            /* campos, barras de rolagem etc. do navegador também ficam escuros */
+
+  --bg: #0E1216;                 /* fundo da página */
+  --surface: #1A2129;            /* fundo dos cards */
+  --surface-2: #222B34;          /* fundo dos campos de texto */
+  --ink: #F2F4F5;               /* texto principal */
+  --ink-2: #A3ADB6;             /* texto apagado (secundário) */
+  --line: #242D37;              /* linhas e bordas */
+  --accent: #FFB400;            /* destaque (botão principal, escolhido) */
+  --accent-ink: #14110A;        /* texto em cima do destaque */
+  --ok: #6FD391;                /* verde: tudo certo */
+  --ok-bg: #16301F;
+  --warn: #FFC247;              /* âmbar: conferir / refri */
+  --warn-bg: #3A2C0C;
+
+  /* Novas */
+  --nav: #12171C;               /* barra inferior */
+  --chip: #26313C;              /* fundo dos chips (pagamento etc.) */
+  --chip-ink: #F2F4F5;          /* texto dos chips */
+  --overlay: rgba(0, 0, 0, .6); /* fundo escurecido atrás de menu/avisos */
+  --sombra: 0 6px 20px rgba(0, 0, 0, .35);
+}
+
+
+/* ------------------------------------------------------------
+   3. TEMA DIA
+   ------------------------------------------------------------ */
+:root[data-tema="dia"] {
+  color-scheme: light;
+
+  --bg: #F3F4F0;
+  --surface: #FFFFFF;
+  --surface-2: #EEF0EA;
+  --ink: #14201B;
+  --ink-2: #5B6660;
+  --line: #DADFD7;
+  --accent: #0F7B5A;
+  --accent-ink: #FFFFFF;
+  --ok: #14703F;
+  --ok-bg: #DDF1E4;
+  --warn: #8A4B00;
+  --warn-bg: #FFF0D2;
+
+  --nav: #FFFFFF;
+  --chip: #E3F1EB;
+  --chip-ink: #0B5A42;
+  --overlay: rgba(10, 20, 15, .45);
+  --sombra: 0 6px 20px rgba(20, 32, 27, .10);
+}
+
+
+/* ------------------------------------------------------------
+   4. TEMA AZUL
+   ------------------------------------------------------------ */
+:root[data-tema="azul"] {
+  color-scheme: light;
+
+  --bg: #F2F5FC;
+  --surface: #FFFFFF;
+  --surface-2: #EDF1FB;
+  --ink: #111A33;
+  --ink-2: #586282;
+  --line: #DCE3F3;
+  --accent: #1F4FE0;
+  --accent-ink: #FFFFFF;
+  --ok: #17703A;
+  --ok-bg: #DCF2E4;
+  --warn: #8F4300;
+  --warn-bg: #FFE9C2;
+
+  --nav: #FFFFFF;
+  --chip: #E6ECFF;
+  --chip-ink: #1B3FB3;
+  --overlay: rgba(10, 18, 48, .45);
+  --sombra: 0 6px 20px rgba(31, 79, 224, .12);
+}
+
+
+/* ------------------------------------------------------------
+   5. AJUSTES DE TIPOGRAFIA E ÍCONES
+   ------------------------------------------------------------ */
+
+/* Variáveis comuns a todos os temas (não mudam de tema pra tema). */
+:root {
+  --raio: 16px;      /* cantos dos cards e botões */
+  --raio-g: 24px;    /* cantos dos blocos grandes (cartão do dia, gaveta) */
+
+  /* A Inter agora é a fonte de títulos e de texto. Se ela não carregar,
+     cai pra fonte padrão do celular. (--f-mono continua só para o campo
+     onde se cola o WhatsApp.) */
+  --f-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Os títulos antigos eram em MAIÚSCULAS e condensados (fonte Barlow Condensed).
+   Na Inter, maiúsculas ficam largas e pesadas, então voltam ao normal.
+   (Provisório: as telas novas das próximas etapas já nascem assim.) */
+h1, .tela-t, .menu-marca, .turno-t, .conta-t, .rel-h b, .sair-box b {
+  text-transform: none;
+  letter-spacing: -.01em;
+}
+
+/* A Inter é mais LARGA que a fonte antiga (condensada). Com 28px, números como
+   "R$32" não cabiam na coluna do resumo e quebravam em duas linhas ("R$3" / "2").
+   Por isso estes números ficam menores. (Provisório: o resumo será refeito
+   no cartão do dia, na etapa da tela Corridas.)
+   clamp(mínimo, ideal, máximo): o tamanho acompanha a largura da tela (5.2vw = 5,2%
+   da largura), mas nunca fica menor que o mínimo nem maior que 22px.
+   Medido em celulares de 360px e 390px:
+     • resumo: números inteiros até "R$999" cabem numa linha
+     • entregas do dia: até "R$132,50" (com centavos) cabe numa linha */
+.sum b { font-size: clamp(18px, 5.2vw, 22px); letter-spacing: -.02em; }
+.turno-nums b { font-size: clamp(16px, 4.7vw, 22px); letter-spacing: -.02em; }
+
+/* Ícones SVG (js/icones.js): pegam a cor do texto ao redor. */
+.ic { display: inline-block; flex: none; vertical-align: middle; }
+
+/* O fundo escurecido do menu e do aviso "Deseja sair?" agora vem do tema. */
+.menu-fundo { background: var(--overlay); }
+.sair { background: var(--overlay); }
