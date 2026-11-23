@@ -12,7 +12,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Leitor de Pedidos</title>
+  <title>MotoGiro</title>
   <!-- Faz o site poder ser instalado como app (e virar APK) -->
   <link rel="manifest" href="manifest.json">
   <!-- Cor da barra de cima do celular. O js/tema.js troca essa cor conforme o tema. -->
@@ -253,10 +253,15 @@
          (o auth.js a preenche pelo id areaConta). -->
     <div class="menu-fundo" id="menuFundo"></div>
     <nav class="menu-painel" id="menuPainel" aria-label="Menu">
-      <b class="menu-marca">Todoke</b>
+      <b class="menu-marca">MotoGiro</b>
       <section id="areaConta" aria-label="Conta"></section>
-      <button class="menu-item" type="button" data-ir="corridas">Corridas</button>
-      <button class="menu-item" type="button" data-ir="empresas">Empresas</button>
+      <div class="gav-itens">
+        <button class="menu-item" type="button" data-ir="corridas"><span data-ic="corridas" data-tam="22"></span><span>Corridas</span></button>
+        <button class="menu-item" type="button" data-ir="empresas"><span data-ic="empresas" data-tam="22"></span><span>Empresas</span></button>
+        <button class="menu-item" type="button" data-ir="historico"><span data-ic="historico" data-tam="22"></span><span>Histórico</span></button>
+        <button class="menu-item" type="button" data-ir="perfil"><span data-ic="perfil" data-tam="22"></span><span>Perfil</span></button>
+      </div>
+      <div id="areaSair" class="gav-pe"></div>
     </nav>
 
   </main>

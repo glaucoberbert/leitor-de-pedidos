@@ -128,6 +128,7 @@ var conta = (function () {
 (function () {
 
   var main = document.querySelector('main');         // o app inteiro (fica escondido até entrar)
+  var barraSair = document.getElementById('areaSair');  // botão "Sair da conta" no pé da gaveta
   var barra = document.getElementById('areaConta');  // faixa pequena dentro do app: nome + "Sair da conta"
   if (!main) return;                                  // página sem app: não faz nada
 
@@ -135,7 +136,7 @@ var conta = (function () {
   var porta = document.createElement('section');
   porta.className = 'porta';
   porta.hidden = true;
-  porta.setAttribute('aria-label', 'Entrar no Todoke');
+  porta.setAttribute('aria-label', 'Entrar no MotoGiro');
   document.body.insertBefore(porta, document.body.firstChild);
 
   var $ = function (id) { return document.getElementById(id); };
@@ -185,8 +186,14 @@ var conta = (function () {
   // Faixa pequena que aparece DENTRO do app, depois de entrar.
   function barraHTML() {
     var u = conta.usuario() || {};
-    return '<div class="conta-bar"><span class="hint">Conectado como <b>' + esc(u.nome || u.email) + '</b></span>' +
-           '<button class="link" type="button" data-c="sair">Sair da conta</button></div>';
+    var nome = u.nome || u.email || '';
+    return '<div class="gav-user"><span class="avatar" aria-hidden="true">' + esc(nome.charAt(0).toUpperCase()) + '</span>' +
+           '<div class="gav-dados"><b>' + esc(u.nome || 'Motoboy') + '</b>' + (u.email ? '<span>' + esc(u.email) + '</span>' : '') + '</div></div>';
+  }
+
+  // Botão "Sair da conta" no pé da gaveta (fica separado do nome, por isso tem seu próprio lugar).
+  function sairHTML() {
+    return '<button class="menu-item gav-sair" type="button" data-c="sair">' + icones.svg('sair', 22) + '<span>Sair da conta</span></button>';
   }
 
   // Pedaço comum dos formulários: aviso + "aguarde" + botão principal.
@@ -284,11 +291,12 @@ var conta = (function () {
     main.hidden = !mostraApp;                                // o app só aparece depois de entrar (e cadastrar a empresa)
     porta.hidden = mostraApp;                                // a porta some quando o app aparece
     if (barra) barra.innerHTML = mostraApp ? barraHTML() : '';
+    if (barraSair) barraSair.innerHTML = mostraApp ? sairHTML() : '';
 
     if (mostraApp) { porta.innerHTML = ''; return; }
 
     porta.innerHTML = '<div class="porta-box">' +
-      '<div class="porta-marca"><h1>Todoke</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
+      '<div class="porta-marca"><h1>MotoGiro</h1><p class="lead">Leitor de pedidos para motoboys.</p></div>' +
       formHTML() + '</div>';
 
     // Depois de redefinir a senha, o e-mail já vem preenchido na tela de entrar.
@@ -522,6 +530,7 @@ var conta = (function () {
   }
   porta.addEventListener('click', clique);
   if (barra) barra.addEventListener('click', clique);
+  if (barraSair) barraSair.addEventListener('click', clique);
 
   desenhar(false);   // primeiro desenho, ao abrir o app
 

@@ -324,3 +324,23 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .avatar.grande { background: var(--accent); color: var(--accent-ink); }
 /* Títulos das telas internas: um respiro embaixo da faixa do topo. */
 #emp > header, #hist > header, #perfil > header { padding-top: 8px; }
+
+
+/* ------------------------------------------------------------
+   10. GAVETA LATERAL (estilo Spoke)
+   Marca no topo, bloco com a conta, itens com ícone e "Sair da conta" no pé.
+   ------------------------------------------------------------ */
+.menu-painel { gap: 8px; background: var(--surface); }
+.menu-marca { font: 800 26px/1 var(--f-display); letter-spacing: -.02em; color: var(--accent); padding: 4px 6px 10px; }
+.menu-painel #areaConta { padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.gav-user { display: flex; align-items: center; gap: 12px; padding: 4px 6px; }
+.gav-dados { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.gav-dados b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gav-dados span { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gav-itens { display: flex; flex-direction: column; gap: 4px; }
+.menu-item { display: flex; align-items: center; gap: 14px; min-height: 52px; border-radius: 14px; color: var(--ink); font: 600 16px/1 var(--f-body); }
+.menu-item[aria-current="page"] { background: var(--nav-ativo); color: var(--nav-ativo-ink); }
+.gav-pe { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.gav-sair { width: 100%; color: var(--ink-2); }
+/* Avatar da gaveta: cor de destaque (no Azul o do topo é branco e sumiria no fundo branco). */
+.gav-user .avatar { background: var(--accent); color: var(--accent-ink); }

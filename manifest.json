@@ -1,6 +1,6 @@
 {
-  "name": "Leitor de Pedidos",
-  "short_name": "Pedidos",
+  "name": "MotoGiro",
+  "short_name": "MotoGiro",
   "description": "Lê as mensagens de pedidos do WhatsApp e monta os cards para o Spoke.",
   "lang": "pt-BR",
   "start_url": "./index.html",
