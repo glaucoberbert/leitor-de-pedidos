@@ -367,3 +367,58 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .porta .b2 { width: 100%; min-height: 50px; border-radius: 16px; font: 600 16px/1 var(--f-body); }
 .porta .link { min-height: 44px; font: 600 15px/1 var(--f-body); text-decoration: none; color: var(--accent); }
 .porta .conta-lembrar { min-height: 40px; }
+
+
+/* ------------------------------------------------------------
+   12. TELAS EMPRESAS E RELATÓRIO com o visual novo
+   Escopo: só dentro de #emp e #rel (a tela Corridas e o login não mudam).
+   ------------------------------------------------------------ */
+#emp, #rel { gap: 14px; }
+#rel > header { padding-top: 8px; }
+#rel h1 { font: 700 32px/1.1 var(--f-display); letter-spacing: -.02em; }
+#emp .lead, #rel .lead { color: var(--ink-2); font-size: 15px; }
+
+/* Cartões (Empresas e cada serviço do relatório) */
+#emp .paste, .rel-s {
+  background: var(--surface); border: 1px solid var(--card-borda); box-shadow: var(--card-sombra);
+  border-radius: var(--raio-g); padding: 18px 16px; gap: 16px;
+}
+.rel-s { display: flex; flex-direction: column; }
+#emp .paste { gap: 18px; }
+
+/* Rótulos: frase normal, sem MAIÚSCULAS nem fonte mono */
+#emp .lab, #rel .lab { font: 600 13px/1.2 var(--f-body); text-transform: none; letter-spacing: 0; color: var(--ink-2); }
+#emp .hint, #rel .hint { font-size: 13px; line-height: 1.4; }
+
+/* Campos e botões */
+#emp .in, #rel .in { min-height: 50px; border-radius: 14px; font-size: 16px; }
+#emp .in:focus, #rel .in:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+#emp .in.sm, #rel .in.sm { max-width: 160px; }
+#emp .b1, #rel .b1 { min-height: 52px; border-radius: 16px; font: 700 16px/1 var(--f-body); }
+#emp .b2, #rel .b2 { min-height: 46px; border-radius: 14px; font: 600 15px/1 var(--f-body); }
+
+/* Escolha da empresa: "pílulas"; a escolhida usa a cor do tema */
+#emp .seg { gap: 8px; }
+#emp .seg .b2 { border-radius: 999px; padding: 0 16px; background: var(--surface-2); border-color: transparent; color: var(--ink); }
+#emp .seg .b2[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+#emp .seg .plus { background: transparent; border: 1.5px dashed var(--accent); color: var(--accent); }
+
+/* Relatório: título do serviço, lista e total */
+.rel-h b { font: 700 20px/1.15 var(--f-display); text-transform: none; letter-spacing: -.01em; }
+.rel-h span { font-size: 14px; }
+.rel-l li { padding: 6px 0; border-top: 1px solid var(--line); }
+.rel-l li:first-child { border-top: 0; }
+.rel-l .n { font-size: 15px; }
+.rel-g b { font: 800 40px/1 var(--f-display); letter-spacing: -.03em; color: var(--accent); }
+#rel .notice { border-radius: 14px; padding: 12px 14px; }
+#rel .row { gap: 10px; }
+#emp .link { text-decoration: none; font-weight: 600; }
+
+/* Empresa escolhida: pílula com um "x" (apagar) dentro. */
+#emp .seg .sv-sel { display: inline-flex; align-items: center; background: var(--accent); border-radius: 999px; padding-right: 6px; }
+#emp .seg .sv-sel .b2 { background: transparent; padding-right: 8px; }
+.sv-x {
+  width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(0, 0, 0, .14); color: var(--accent-ink);
+}

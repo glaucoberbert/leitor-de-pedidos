@@ -480,9 +480,9 @@
   function svcDelHTML() {
     if (S.servicos.length < 2) return '';
     var s = svc(S.servicoId), d = ui.delSvc;
-    if (!d) return '<button class="link" type="button" data-sd="pedir">Apagar «' + esc(s.nome) + '»</button>';
+    if (!d) return '';   // o botão "x" de apagar fica na pílula da empresa escolhida (renderServicos)
     if (d.step === 1) {
-      return '<div class="notice warn">Você deseja realmente apagar o serviço «' + esc(s.nome) + '»?</div>' +
+      return '<div class="notice warn">Deseja realmente apagar a empresa «' + esc(s.nome) + '»?</div>' +
         '<div class="row"><button class="b2" type="button" data-sd="sim1">Sim, apagar</button>' +
         '<button class="b2" type="button" data-sd="nao">Não</button></div>';
     }
@@ -495,7 +495,13 @@
   // Serviços: botões de escolha + "+ Novo".
   function renderServicos() {
     var h = S.servicos.map(function (s) {
-      return '<button class="b2" type="button" data-sv="' + esc(s.id) + '" aria-pressed="' + (s.id === S.servicoId ? 'true' : 'false') + '">' + esc(s.nome) + '</button>';
+      var sel = s.id === S.servicoId;
+      var btn = '<button class="b2" type="button" data-sv="' + esc(s.id) + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' + esc(s.nome) + '</button>';
+      // A empresa escolhida ganha um "x" para apagar (só com 2 ou mais empresas: nunca fica sem nenhuma).
+      if (sel && S.servicos.length > 1) {
+        return '<span class="sv-sel">' + btn + '<button class="sv-x" type="button" data-sd="pedir" aria-label="Apagar a empresa ' + esc(s.nome) + '">' + icones.svg('fechar', 16) + '</button></span>';
+      }
+      return btn;
     }).join('');
     h += '<button class="b2 plus" type="button" data-sv="__novo">+ Novo</button>';
     $('servicos').innerHTML = h;
@@ -1209,7 +1215,7 @@
   });
 
   // --- Apagar serviço (duas confirmações) ---
-  $('svcdel').addEventListener('click', function (e) {
+  function aoApagarEmpresa(e) {
     var b = e.target.closest('[data-sd]');
     if (!b) return;
     var a = b.getAttribute('data-sd');
@@ -1225,11 +1231,13 @@
       renderServicos();
       aplicarValorPadrao();
       queueSave();
-      setStatus('Serviço «' + nome + '» apagado.', 'ok');
+      setStatus('Empresa «' + nome + '» apagada.', 'ok');
       return;
     }
     renderServicos();
-  });
+  }
+  $('svcdel').addEventListener('click', aoApagarEmpresa);    // as perguntas de confirmação
+  $('servicos').addEventListener('click', aoApagarEmpresa);  // o "x" na pílula da empresa
 
   // --- NOVO: botão "Colar pedidos do WhatsApp" ---
   // Abre (true) ou fecha (false) a caixa de colar na mão.
