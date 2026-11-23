@@ -61,6 +61,8 @@
 
   /* Novas */
   --nav: #12171C;               /* barra inferior */
+  --nav-ativo-ink: #FFB400;
+  --nav-ativo: rgba(255, 180, 0, .16);  /* "pílula" da tela atual na barra inferior */
   --chip: #26313C;              /* fundo dos chips (pagamento etc.) */
   --chip-ink: #F2F4F5;          /* texto dos chips */
   --overlay: rgba(0, 0, 0, .6); /* fundo escurecido atrás de menu/avisos */
@@ -118,6 +120,8 @@
   --warn-bg: #FFF0D2;
 
   --nav: #FFFFFF;
+  --nav-ativo-ink: #0B5A42;
+  --nav-ativo: #E3F1EB;
   --chip: #E3F1EB;
   --chip-ink: #0B5A42;
   --overlay: rgba(10, 20, 15, .45);
@@ -172,6 +176,8 @@
   --warn-bg: #FFE9C2;
 
   --nav: #FFFFFF;
+  --nav-ativo-ink: #1B3FB3;
+  --nav-ativo: #E6ECFF;
   --chip: #E6ECFF;
   --chip-ink: #1B3FB3;
   --overlay: rgba(10, 18, 48, .45);

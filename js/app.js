@@ -1023,17 +1023,59 @@
      ---------------------------------------------------------- */
 
   // Redesenha tudo (usado quando muda de tela ou ao carregar).
+  // Barra inferior: qual "ir" (data-ir) corresponde a cada tela. O relatório conta como Corridas.
+  var VIEW_DO_IR = { corridas: 'main', empresas: 'emp', historico: 'hist', perfil: 'perfil' };
+  var IR_DA_VIEW = { main: 'corridas', rel: 'corridas', emp: 'empresas', hist: 'historico', perfil: 'perfil' };
+
+  // Perfil: dados da conta e seletor de tema (Noite / Dia / Azul / Automático).
+  function renderPerfil() {
+    var u = (window.conta && conta.usuario && conta.usuario()) || {};
+    var nome = primeiroNome();
+    $('perfilLetra').textContent = (nome || 'M').charAt(0).toUpperCase();
+    $('perfilNome').textContent = u.nome || nome || 'Motoboy';
+    $('perfilEmail').textContent = u.email || '';
+    var atual = window.tema ? tema.escolha() : 'noite';
+    var h = '';
+    var ops = window.tema ? tema.opcoes : [];
+    for (var k = 0; k < ops.length; k++) {
+      var on = ops[k].id === atual;
+      h += '<button type="button" class="tema-op' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" data-tema="' + ops[k].id + '">' +
+           '<i class="amostra amostra-' + ops[k].id + '" aria-hidden="true"></i><span>' + ops[k].nome + '</span></button>';
+    }
+    $('temas').innerHTML = h;
+  }
+  $('temas').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tema]');
+    if (!b || !window.tema) return;
+    tema.definir(b.getAttribute('data-tema'));
+    renderPerfil();
+  });
+
+  function irPara(destino) {
+    ui.view = VIEW_DO_IR[destino] || 'main';
+    renderAll();
+    window.scrollTo(0, 0);
+  }
+  $('navBaixo').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ir]');
+    if (b) irPara(b.getAttribute('data-ir'));
+  });
+  $('avatar').addEventListener('click', function () { irPara('perfil'); });
+
   function renderAll() {
     $('main').hidden = ui.view !== 'main';
     $('turno').hidden = ui.view !== 'main';
     $('rel').hidden = ui.view !== 'rel';
+    $('hist').hidden = ui.view !== 'hist';
+    $('perfil').hidden = ui.view !== 'perfil';
         $('emp').hidden = ui.view !== 'emp';   // NOVO: a aba Empresas só aparece quando é a tela atual
     document.body.setAttribute('data-view', ui.view);   // NOVO: o CSS usa isso (faixa do tema Azul)
     renderTopo();                                        // NOVO: saudação, nome e avatar
+    if (ui.view === 'perfil') renderPerfil();
     // NOVO: marca no menu qual é a tela atual
     var itensMenu = document.querySelectorAll('[data-ir]');
     for (var im = 0; im < itensMenu.length; im++) {
-      var atual = itensMenu[im].getAttribute('data-ir') === (ui.view === 'emp' ? 'empresas' : 'corridas');
+      var atual = itensMenu[im].getAttribute('data-ir') === (IR_DA_VIEW[ui.view] || 'corridas');
       itensMenu[im].setAttribute('aria-current', atual ? 'page' : 'false');
     }
     renderTurno();
@@ -1139,9 +1181,7 @@
 
   // NOVO: o menu lateral (js/menu.js) avisa aqui qual tela abrir: 'corridas' ou 'empresas'.
   document.addEventListener('todoke:ir', function (e) {
-    ui.view = e.detail === 'empresas' ? 'emp' : 'main';
-    renderAll();
-    window.scrollTo(0, 0);
+    irPara(e.detail);
   });
 
   // Mínimo garantido do serviço que está na tela. Vazio ou 0 = sem mínimo.

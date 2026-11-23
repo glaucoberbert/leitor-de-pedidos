@@ -251,3 +251,76 @@ body[data-view="main"] .wrap::before { height: 196px; }
 @media (prefers-reduced-motion: reduce) {
   .emp-chip .ic, .dia-barra i, .dia-seta .ic { transition: none; }
 }
+
+
+/* ------------------------------------------------------------
+   9. BARRA INFERIOR, PERFIL E HISTÓRICO (Parte 2)
+   ------------------------------------------------------------ */
+
+/* Espaço no fim da página para a barra inferior não cobrir o último botão. */
+.wrap { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+
+/* O avatar agora é um botão (leva ao Perfil). */
+button.avatar { border: 0; padding: 0; cursor: pointer; }
+.avatar.grande { width: 64px; height: 64px; font-size: 28px; }
+
+/* Barra fixa embaixo: 4 telas. A atual ganha uma "pílula" colorida. */
+.nav-baixo {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; justify-content: center; gap: 4px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--nav);
+  border-top: 1px solid var(--line);
+}
+.nav-baixo button {
+  flex: 1 1 0; max-width: 130px; min-height: 56px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 16px; background: transparent;
+  color: var(--ink-2); font: 600 12px/1 var(--f-body); cursor: pointer;
+}
+.nav-baixo button[aria-current="page"] { background: var(--nav-ativo); color: var(--nav-ativo-ink); }
+
+/* Histórico vazio */
+.vazio {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  padding: 36px 20px; border-radius: var(--raio-g);
+  background: var(--surface); border: 1px solid var(--card-borda); box-shadow: var(--card-sombra);
+  color: var(--ink-2);
+}
+.vazio b { font-size: 18px; color: var(--ink); }
+.vazio p { margin: 0; font-size: 15px; max-width: 30ch; }
+
+/* Perfil */
+.perfil-card {
+  display: flex; align-items: center; gap: 14px; padding: 16px;
+  border-radius: var(--raio-g);
+  background: var(--surface); border: 1px solid var(--card-borda); box-shadow: var(--card-sombra);
+}
+.perfil-dados { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.perfil-dados b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfil-dados span { font-size: 14px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.perfil-bloco {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border-radius: var(--raio-g);
+  background: var(--surface); border: 1px solid var(--card-borda); box-shadow: var(--card-sombra);
+}
+.bloco-t { margin: 0; display: flex; align-items: center; gap: 8px; font: 700 17px/1.2 var(--f-display); }
+
+.temas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tema-op {
+  min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  border-radius: 14px; border: 2px solid var(--line); background: var(--surface-2);
+  color: var(--ink); font: 600 16px/1 var(--f-body); cursor: pointer; text-align: left;
+}
+.tema-op.on { border-color: var(--accent); background: var(--chip); color: var(--chip-ink); }
+.amostra { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(128,128,128,.45); }
+.amostra-noite { background: linear-gradient(135deg, #0E1216 50%, #FFB400 50%); }
+.amostra-dia   { background: linear-gradient(135deg, #F3F4F0 50%, #0F7B5A 50%); }
+.amostra-azul  { background: linear-gradient(135deg, #F2F5FC 50%, #1F4FE0 50%); }
+.amostra-auto  { background: linear-gradient(90deg, #0E1216 50%, #F3F4F0 50%); }
+
+/* Avatar grande do Perfil: usa a cor de destaque (no Azul o avatar do topo é branco e sumiria no cartão branco). */
+.avatar.grande { background: var(--accent); color: var(--accent-ink); }
+/* Títulos das telas internas: um respiro embaixo da faixa do topo. */
+#emp > header, #hist > header, #perfil > header { padding-top: 8px; }
